@@ -342,9 +342,12 @@ class Datasets:
                     source = "local-snapshot"
         for row in rows:
             row["source"] = source
-            if name == "predictions" and "mock" in str(row.get("model_version", "")).lower():
-                row["source"] = "mock"
-                row["provenance"] = "SIMULATED"
+            if name == "predictions":
+                if "mock" in str(row.get("model_version", "")).lower():
+                    row["source"] = "mock"
+                    row["provenance"] = "SIMULATED"
+                else:
+                    row["provenance"] = "PREDICTED"
             if name in ("vehicles", "predictions"):
                 row["route"] = row.get("route_short_name", row.get("route"))
                 row["direction"] = row.get("direction_id", row.get("direction"))
