@@ -1,0 +1,1046 @@
+{
+  "captured_at": "2026-11-07T20:19:01.375059+00:00",
+  "pipeline_id": "206b4370-b5cc-48eb-8eba-932dcea5dc95",
+  "normalization_revisions": [
+    {
+      "dataset": "vehicle_pings_candidates",
+      "revision": "e37cd676e5a12f146277a396b34c4a4353bc62d0a1a28e4cf1b3adc87e4c9608"
+    },
+    {
+      "dataset": "events_evaluated",
+      "revision": "e37cd676e5a12f146277a396b34c4a4353bc62d0a1a28e4cf1b3adc87e4c9608"
+    }
+  ],
+  "counts": [
+    {
+      "table_name": "silver.vehicle_pings",
+      "row_count": 483
+    },
+    {
+      "table_name": "silver.schedule_expanded",
+      "row_count": 1560184
+    },
+    {
+      "table_name": "silver.weather_hourly",
+      "row_count": 2859
+    },
+    {
+      "table_name": "bronze.tripspark_vehicles",
+      "row_count": 54
+    },
+    {
+      "table_name": "bronze.tripspark_base",
+      "row_count": 3
+    },
+    {
+      "table_name": "bronze.events",
+      "row_count": 8293
+    },
+    {
+      "table_name": "bronze.weather_openmeteo",
+      "row_count": 7
+    },
+    {
+      "table_name": "bronze.weather_nws",
+      "row_count": 4
+    },
+    {
+      "table_name": "bronze.ntd_monthly",
+      "row_count": 25
+    },
+    {
+      "table_name": "bronze.gtfs_routes",
+      "row_count": 22
+    },
+    {
+      "table_name": "bronze.gtfs_stops",
+      "row_count": 203
+    },
+    {
+      "table_name": "bronze.gtfs_trips",
+      "row_count": 6312
+    },
+    {
+      "table_name": "bronze.gtfs_stop_times",
+      "row_count": 57870
+    },
+    {
+      "table_name": "bronze.gtfs_shapes",
+      "row_count": 2414
+    },
+    {
+      "table_name": "bronze.gtfs_calendar_dates",
+      "row_count": 96
+    },
+    {
+      "table_name": "bronze.gtfs_feed_info",
+      "row_count": 1
+    },
+    {
+      "table_name": "bronze.seed_academic_days",
+      "row_count": 153
+    },
+    {
+      "table_name": "bronze.seed_venues",
+      "row_count": 27
+    },
+    {
+      "table_name": "bronze.seed_class_periods",
+      "row_count": 32
+    },
+    {
+      "table_name": "bronze.seed_football_home",
+      "row_count": 12
+    },
+    {
+      "table_name": "bronze.seed_basketball_home",
+      "row_count": 21
+    },
+    {
+      "table_name": "bronze.seed_event_filters",
+      "row_count": 1
+    },
+    {
+      "table_name": "silver.vehicle_latest",
+      "row_count": 0
+    },
+    {
+      "table_name": "silver.vehicle_pings_candidates",
+      "row_count": 485
+    },
+    {
+      "table_name": "silver.vehicle_pings_quarantine",
+      "row_count": 0
+    },
+    {
+      "table_name": "silver.gtfs_routes",
+      "row_count": 22
+    },
+    {
+      "table_name": "silver.gtfs_stops",
+      "row_count": 203
+    },
+    {
+      "table_name": "silver.gtfs_trips",
+      "row_count": 6312
+    },
+    {
+      "table_name": "silver.gtfs_stop_times",
+      "row_count": 57870
+    },
+    {
+      "table_name": "silver.gtfs_shapes",
+      "row_count": 2414
+    },
+    {
+      "table_name": "silver.gtfs_calendar_dates",
+      "row_count": 96
+    },
+    {
+      "table_name": "silver.tripspark_routes",
+      "row_count": 41
+    },
+    {
+      "table_name": "silver.tripspark_route_mismatches",
+      "row_count": 1
+    },
+    {
+      "table_name": "silver.service_alerts",
+      "row_count": 8
+    },
+    {
+      "table_name": "silver.events",
+      "row_count": 1713
+    },
+    {
+      "table_name": "silver.events_evaluated",
+      "row_count": 8293
+    },
+    {
+      "table_name": "silver.events_filter_stats",
+      "row_count": 8
+    },
+    {
+      "table_name": "silver.academic_days",
+      "row_count": 153
+    },
+    {
+      "table_name": "silver.class_periods",
+      "row_count": 32
+    },
+    {
+      "table_name": "silver.ntd_monthly",
+      "row_count": 25
+    }
+  ],
+  "expectation_metrics": [
+    {
+      "timestamp": "2026-11-07T20:08:24.636Z",
+      "update_id": "bf0c1573-9c39-44c7-9087-1fdcbde42600",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.events",
+          "passed_records": 8293,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:08:21.743Z",
+      "update_id": "bf0c1573-9c39-44c7-9087-1fdcbde42600",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.ntd_monthly",
+          "passed_records": 25,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:08:22.309Z",
+      "update_id": "bf0c1573-9c39-44c7-9087-1fdcbde42600",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.tripspark_base",
+          "passed_records": 3,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:08:31.019Z",
+      "update_id": "bf0c1573-9c39-44c7-9087-1fdcbde42600",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.tripspark_vehicles",
+          "passed_records": 54,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:17:29.226Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.weather_nws",
+          "passed_records": 1,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:17:22.836Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "valid_json_envelope",
+          "dataset": "transit.bronze.weather_openmeteo",
+          "passed_records": 1,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:12.895Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "event_has_start",
+          "dataset": "transit.silver.events",
+          "passed_records": 1713,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:17:58.742Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "scheduled_time_present",
+          "dataset": "transit.silver.schedule_expanded",
+          "passed_records": 1560184,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:23.981Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "fresh_gps",
+          "dataset": "transit.silver.vehicle_pings",
+          "passed_records": 483,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:23.981Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "local_bbox",
+          "dataset": "transit.silver.vehicle_pings",
+          "passed_records": 483,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:23.981Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "route_present",
+          "dataset": "transit.silver.vehicle_pings",
+          "passed_records": 483,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:23.981Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "valid_apc",
+          "dataset": "transit.silver.vehicle_pings",
+          "passed_records": 483,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:23.981Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "vehicle_identity",
+          "dataset": "transit.silver.vehicle_pings",
+          "passed_records": 483,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:17.181Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "fresh_gps",
+          "dataset": "transit.silver.vehicle_pings_candidates",
+          "passed_records": 485,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:17.181Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "local_bbox",
+          "dataset": "transit.silver.vehicle_pings_candidates",
+          "passed_records": 485,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:17.181Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "route_present",
+          "dataset": "transit.silver.vehicle_pings_candidates",
+          "passed_records": 485,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:17.181Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "valid_apc",
+          "dataset": "transit.silver.vehicle_pings_candidates",
+          "passed_records": 485,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:17.181Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "vehicle_identity",
+          "dataset": "transit.silver.vehicle_pings_candidates",
+          "passed_records": 485,
+          "failed_records": 0
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-07T20:18:07.865Z",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5",
+      "expectations": [
+        {
+          "name": "weather_hour_present",
+          "dataset": "transit.silver.weather_hourly",
+          "passed_records": 2859,
+          "failed_records": 0
+        }
+      ]
+    }
+  ],
+  "contract_checks": [
+    {
+      "duplicate_pings": 0,
+      "duplicate_events": 0,
+      "negative_schedule_dwells": 0,
+      "max_gtfs_arrival_seconds": 88380
+    }
+  ],
+  "vehicle_range": [
+    {
+      "min_ts_gps": "2026-11-07T19:31:53.000Z",
+      "max_ts_gps": "2026-11-07T19:59:26.000Z",
+      "vehicles": 9,
+      "hosts": 1
+    }
+  ],
+  "vehicle_quality": [
+    {
+      "raw_pings": 485,
+      "identity_pass": 485,
+      "bbox_pass": 485,
+      "apc_pass": 485,
+      "gps_age_pass": 485,
+      "route_pass": 485
+    }
+  ],
+  "mismatches": [
+    {
+      "route_key": "ab374f65-de4d-4e55-ad1e-944ec271350b",
+      "route_short_name": "RD",
+      "route_name": "Ring Day",
+      "reason": "TripSpark short name absent from current GTFS"
+    }
+  ],
+  "filter_stats": [
+    {
+      "reason": "missing local physical evidence",
+      "raw_count": 4036,
+      "kept_count": 0,
+      "dropped_count": 4036
+    },
+    {
+      "reason": "kept",
+      "raw_count": 1691,
+      "kept_count": 1691,
+      "dropped_count": 0
+    },
+    {
+      "reason": "routine service or study availability",
+      "raw_count": 1465,
+      "kept_count": 0,
+      "dropped_count": 1465
+    },
+    {
+      "reason": "online",
+      "raw_count": 771,
+      "kept_count": 0,
+      "dropped_count": 771
+    },
+    {
+      "reason": "nonlocal campus",
+      "raw_count": 312,
+      "kept_count": 0,
+      "dropped_count": 312
+    },
+    {
+      "reason": "nonlocal or excluded Health Science Center site; review local HSC separately",
+      "raw_count": 13,
+      "kept_count": 0,
+      "dropped_count": 13
+    },
+    {
+      "reason": "canceled",
+      "raw_count": 4,
+      "kept_count": 0,
+      "dropped_count": 4
+    },
+    {
+      "reason": "observed nonlocal groups",
+      "raw_count": 1,
+      "kept_count": 0,
+      "dropped_count": 1
+    }
+  ],
+  "samples": {
+    "vehicle_pings": [
+      {
+        "route_key": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+        "direction_key": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+        "vehicle_id": "1d66d52c-0a4d-45b7-a9ee-279b09a3ce19",
+        "vehicle_name": "B2022",
+        "ts_gps": "2026-11-07T19:32:08.000Z",
+        "ingest_ts": "2026-11-07T19:32:13.550Z",
+        "poll_id": "5db8053a-227e-4ee5-97e1-d5407fa6fa6b",
+        "lat": 30.615539833333333,
+        "lon": -96.34297900000001,
+        "speed": 0.0,
+        "heading": 225.88999938964844,
+        "onboard": 13,
+        "capacity": 85,
+        "is_extra_trip": false,
+        "source_host": "JBOILAPTOP.local",
+        "route_short_name": "03-05",
+        "route_name": "Break, Nights, & Weekends",
+        "direction_name": "West Campus Circulator",
+        "load_factor": 0.15294117647058825,
+        "data_origin": "observed",
+        "nearest_stop_id": "0019",
+        "nearest_stop_dist_m": 7.167750975320774,
+        "h3_r10": 622700521048866815
+      },
+      {
+        "route_key": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+        "direction_key": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+        "vehicle_id": "1d66d52c-0a4d-45b7-a9ee-279b09a3ce19",
+        "vehicle_name": "B2022",
+        "ts_gps": "2026-11-07T19:32:24.000Z",
+        "ingest_ts": "2026-11-07T19:32:30.096Z",
+        "poll_id": "90e1b7ec-9c3d-40a0-bf68-ab2f4447d7bd",
+        "lat": 30.615901833333336,
+        "lon": -96.3434585,
+        "speed": 9.787489436689732,
+        "heading": 242.9499969482422,
+        "onboard": 17,
+        "capacity": 85,
+        "is_extra_trip": false,
+        "source_host": "JBOILAPTOP.local",
+        "route_short_name": "03-05",
+        "route_name": "Break, Nights, & Weekends",
+        "direction_name": "West Campus Circulator",
+        "load_factor": 0.2,
+        "data_origin": "observed",
+        "nearest_stop_id": "0019",
+        "nearest_stop_dist_m": 54.07160110032107,
+        "h3_r10": 622700521048801279
+      },
+      {
+        "route_key": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+        "direction_key": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+        "vehicle_id": "1d66d52c-0a4d-45b7-a9ee-279b09a3ce19",
+        "vehicle_name": "B2022",
+        "ts_gps": "2026-11-07T19:33:52.000Z",
+        "ingest_ts": "2026-11-07T19:34:07.921Z",
+        "poll_id": "f241446d-53bd-4473-8fec-4258f54a85a5",
+        "lat": 30.611562000000003,
+        "lon": -96.34719850000002,
+        "speed": 4.067614630557544,
+        "heading": 247.52999877929688,
+        "onboard": 17,
+        "capacity": 85,
+        "is_extra_trip": false,
+        "source_host": "JBOILAPTOP.local",
+        "route_short_name": "03-05",
+        "route_name": "Break, Nights, & Weekends",
+        "direction_name": "West Campus Circulator",
+        "load_factor": 0.2,
+        "data_origin": "observed",
+        "nearest_stop_id": "0048",
+        "nearest_stop_dist_m": 144.9744448167889,
+        "h3_r10": 622700520823455743
+      }
+    ],
+    "schedule_expanded": [
+      {
+        "service_date": "2026-10-23",
+        "trip_id": "e5d998a3-f4bd-4ee6-9198-9daa1bddefad",
+        "route_id": "26",
+        "route_short_name": "26",
+        "direction_id": 1,
+        "shape_id": "af57c18b-6a88-416c-851a-4bd02e9b54a1",
+        "stop_id": "2600",
+        "stop_sequence": 69,
+        "sched_arrival_ts": "2026-10-23T15:55:00.000Z",
+        "sched_departure_ts": "2026-10-23T15:55:00.000Z",
+        "is_timepoint": true
+      },
+      {
+        "service_date": "2026-12-04",
+        "trip_id": "2b381f47-cc4f-4d41-9d80-0248ae40e8cc",
+        "route_id": "03",
+        "route_short_name": "03",
+        "direction_id": 0,
+        "shape_id": "df048bd7-f9e8-456e-b870-c8475782af8d",
+        "stop_id": "0317",
+        "stop_sequence": 11,
+        "sched_arrival_ts": "2026-12-04T13:12:52.000Z",
+        "sched_departure_ts": "2026-12-04T13:12:52.000Z",
+        "is_timepoint": false
+      },
+      {
+        "service_date": "2026-12-04",
+        "trip_id": "ed1c2000-f7bd-47b4-8d02-faa3a1784934",
+        "route_id": "08",
+        "route_short_name": "08",
+        "direction_id": 1,
+        "shape_id": "d3c2775e-3227-49db-a93e-45b0c4011b3c",
+        "stop_id": "0810",
+        "stop_sequence": 0,
+        "sched_arrival_ts": "2026-12-04T18:18:00.000Z",
+        "sched_departure_ts": "2026-12-04T18:18:00.000Z",
+        "is_timepoint": true
+      }
+    ],
+    "service_alerts": [
+      {
+        "alert_id": "3861",
+        "start_ts": "2026-11-12T22:30:00.000Z",
+        "end_ts": "2026-11-13T04:00:00.000Z",
+        "daily_window": {
+          "start_local": "00:00:00",
+          "end_local": "23:59:59",
+          "timezone": "America/Chicago"
+        },
+        "title": "Multiple routes will be detoured on November 12 from 4:30 PM-10 PM",
+        "text": "On Thursday, November 12, 2026 at 4:30 PM until 10 PM, the following routes will be affected by a service disruption: 01 Bonfire 01-04 Break, Nights, & Weekends 03-05 Break, Nights, & Weekends 05 Bush School 01 Bonfire The following bus stops will be closed during the service disruption: Rec Center - Outbound (ID: 0112) Lot 100G (ID: 0114) Reed Arena/Lot 100c (ID: 0050) Kleberg - Inbound (ID: 0028) 01-04 Break, Nights, & Weekends The following bus stops will be closed during the service disruption: Rec Center - Outbound (ID: 0112) Lot 100G (ID: 0114) Reed Arena/Lot 100c (ID: 0050) Kleberg - Inbound (ID: 0028) 03-05 Break, Nights, & Weekends The following bus stop will be closed during the service disruption: Reed Arena/Lot 100c (ID: 0050) A temporary stop will be provided at: Reed Arena - Inbound (ID: 0053) 05 Bush School to MSC (MSC) The following bus stop will be closed during the service disruption: Reed Arena/Lot 100c (ID: 0050) A temporary stop will be provided at: Reed Arena - Inbound (ID: 0053) to UPD (UPD) This direction is not affected by the service disruption.",
+        "routes": [
+          "03-05",
+          "01-04",
+          "05",
+          "01"
+        ],
+        "closed_stops": [
+          "0112",
+          "0028",
+          "0050",
+          "0114"
+        ]
+      },
+      {
+        "alert_id": "3860",
+        "start_ts": "2026-11-10T02:30:00.000Z",
+        "end_ts": "2026-11-10T04:00:00.000Z",
+        "daily_window": {
+          "start_local": "00:00:00",
+          "end_local": "23:59:59",
+          "timezone": "America/Chicago"
+        },
+        "title": "Multiple routes will be detoured on November 9 from 8:30 PM-10 PM",
+        "text": "On Monday, November 9, 2026 at 8:30 PM until 10 PM, the following routes will be affected by a service disruption: 07 Airport 35 Hullabaloo 40 Century Tree 40-41 Break, Nights, & Weekends 41 Good Bull 07 Airport This route will be affected by a service disruption from Turbo Lab (ID: 0708) to Texas A&M Hotel/Joe Routt (ID: 0700) . 35 Hullabaloo Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Jones Butler @ Harvey Mitchell) This direction is not affected by the service disruption. 40 Century Tree Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption. 40-41 Break, Nights, & Weekends Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption. 41 Good Bull Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption.",
+        "routes": [
+          "35",
+          "40",
+          "07",
+          "40-41",
+          "41"
+        ],
+        "closed_stops": [
+          "0053",
+          "0056"
+        ]
+      },
+      {
+        "alert_id": "3862",
+        "start_ts": "2026-11-13T02:30:00.000Z",
+        "end_ts": "2026-11-13T04:00:00.000Z",
+        "daily_window": {
+          "start_local": "00:00:00",
+          "end_local": "23:59:59",
+          "timezone": "America/Chicago"
+        },
+        "title": "Multiple routes will be detoured on November 12 from 8:30 PM-10 PM",
+        "text": "On Thursday, November 12, 2026 at 8:30 PM until 10 PM, the following routes will be affected by a service disruption: 07 Airport 35 Hullabaloo 40 Century Tree 40-41 Break, Nights, & Weekends 41 Good Bull 07 Airport This route will be affected by a service disruption from Turbo Lab (ID: 0708) to Texas A&M Hotel/Joe Routt (ID: 0700) . 35 Hullabaloo Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Jones Butler @ Harvey Mitchell) This direction is not affected by the service disruption. 40 Century Tree Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption. 40-41 Break, Nights, & Weekends Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption. 41 Good Bull Inbound (MSC) The following bus stops will be closed during the service disruption: Physical Education - Inbound (ID: 0056) Reed Arena - Inbound (ID: 0053) A temporary stop will be provided at: Rec Center - Inbound (ID: 0814) Outbound (Deacon West) This direction is not affected by the service disruption.",
+        "routes": [
+          "07",
+          "41",
+          "40",
+          "40-41",
+          "35"
+        ],
+        "closed_stops": [
+          "0053",
+          "0056"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "event_id": "343091",
+        "title": "Commencement and Commissioning - College Station",
+        "start_ts": "2026-08-08T05:00:00.000Z",
+        "end_ts": null,
+        "is_all_day": true,
+        "location_title": "Reed Arena",
+        "venue_key": "reed_arena",
+        "lat": 30.605854,
+        "lon": -96.346216,
+        "campus": "Bryan-College Station",
+        "category": "Academic Calendar",
+        "event_types": [
+          "Academic Calendar"
+        ],
+        "audience": [],
+        "group_title": "Academic Calendar",
+        "rsvp_total": null,
+        "is_athletics": false,
+        "is_football_home": false,
+        "est_attendance": 12989,
+        "significance": 0.9471935109664646,
+        "is_canceled": false
+      },
+      {
+        "event_id": "353084",
+        "title": "Rec-A-Palooza | Howdy Week Event",
+        "start_ts": "2026-08-23T18:00:00.000Z",
+        "end_ts": "2026-08-23T20:30:00.000Z",
+        "is_all_day": false,
+        "location_title": "Student Recreation Center",
+        "venue_key": "student_rec",
+        "lat": 30.607097,
+        "lon": -96.342793,
+        "campus": "Bryan-College Station",
+        "category": "Campus Life",
+        "event_types": [
+          "Campus Life"
+        ],
+        "audience": [
+          "Students"
+        ],
+        "group_title": "Rec Sports",
+        "rsvp_total": null,
+        "is_athletics": false,
+        "is_football_home": false,
+        "est_attendance": null,
+        "significance": null,
+        "is_canceled": false
+      },
+      {
+        "event_id": "358086",
+        "title": "REO Researcher Academy - New Faculty MINT",
+        "start_ts": "2026-08-10T13:30:00.000Z",
+        "end_ts": "2026-08-10T19:00:00.000Z",
+        "is_all_day": false,
+        "location_title": "Gilchrist Building (T.T.I.)",
+        "venue_key": null,
+        "lat": 30.601483,
+        "lon": -96.353422,
+        "campus": "Bryan-College Station",
+        "category": "Speakers, Forums, Conferences, Training & Workshops",
+        "event_types": [
+          "Speakers, Forums, Conferences, Training & Workshops"
+        ],
+        "audience": [
+          "Faculty",
+          "Researcher"
+        ],
+        "group_title": "College of Education and Human Development",
+        "rsvp_total": null,
+        "is_athletics": false,
+        "is_football_home": false,
+        "est_attendance": null,
+        "significance": null,
+        "is_canceled": false
+      }
+    ],
+    "weather_hourly": [
+      {
+        "ts_hour": "2026-08-01T00:00:00.000Z",
+        "temp_c": 34.7,
+        "apparent_c": 36.9,
+        "precip_mm": 0.0,
+        "rain_mm": 0.0,
+        "wind_kph": 14.8,
+        "weather_code": 0,
+        "source": "openmeteo_archive",
+        "is_forecast": false,
+        "forecast_issued_ts": null
+      },
+      {
+        "ts_hour": "2026-08-01T01:00:00.000Z",
+        "temp_c": 33.7,
+        "apparent_c": 36.0,
+        "precip_mm": 0.0,
+        "rain_mm": 0.0,
+        "wind_kph": 14.0,
+        "weather_code": 0,
+        "source": "openmeteo_archive",
+        "is_forecast": false,
+        "forecast_issued_ts": null
+      },
+      {
+        "ts_hour": "2026-08-01T02:00:00.000Z",
+        "temp_c": 32.7,
+        "apparent_c": 34.8,
+        "precip_mm": 0.0,
+        "rain_mm": 0.0,
+        "wind_kph": 14.8,
+        "weather_code": 0,
+        "source": "openmeteo_archive",
+        "is_forecast": false,
+        "forecast_issued_ts": null
+      }
+    ],
+    "ntd_monthly": [
+      {
+        "ntd_id": "60278",
+        "agency": "Texas A&M University",
+        "mode": "MB",
+        "tos": "DO",
+        "upt": 1003376,
+        "vrm": 194449.0,
+        "vrh": 16767.0,
+        "voms": 66,
+        "ingest_ts": "2026-11-07T19:28:02.079Z",
+        "month": "2024-09-01"
+      },
+      {
+        "ntd_id": "60278",
+        "agency": "Texas A&M University",
+        "mode": "MB",
+        "tos": "DO",
+        "upt": 971088,
+        "vrm": 210771.0,
+        "vrh": 18050.0,
+        "voms": 66,
+        "ingest_ts": "2026-11-07T19:28:02.079Z",
+        "month": "2024-10-01"
+      },
+      {
+        "ntd_id": "60278",
+        "agency": "Texas A&M University",
+        "mode": "MB",
+        "tos": "DO",
+        "upt": 742616,
+        "vrm": 174684.0,
+        "vrh": 14932.0,
+        "voms": 66,
+        "ingest_ts": "2026-11-07T19:28:02.079Z",
+        "month": "2024-11-01"
+      }
+    ]
+  },
+  "updates": [
+    {
+      "creation_time": "2026-11-07T20:15:36.090Z",
+      "state": "COMPLETED",
+      "update_id": "a217bd0f-ae68-47b7-9904-cf72b9d690c5"
+    },
+    {
+      "creation_time": "2026-11-07T20:10:49.133Z",
+      "state": "COMPLETED",
+      "update_id": "f276829d-9be6-4403-8394-1000732e1035"
+    },
+    {
+      "creation_time": "2026-11-07T20:05:57.506Z",
+      "state": "COMPLETED",
+      "update_id": "bf0c1573-9c39-44c7-9087-1fdcbde42600"
+    },
+    {
+      "creation_time": "2026-11-07T20:03:21.889Z",
+      "state": "FAILED",
+      "update_id": "1909d204-a848-4712-8d66-2d10c31ec51b"
+    },
+    {
+      "creation_time": "2026-11-07T20:02:44.194Z",
+      "state": "FAILED",
+      "update_id": "7dd14232-5dce-4c17-bb38-4e87a9955a77"
+    }
+  ],
+  "job": {
+    "created_time": 1794081720647,
+    "creator_user_name": "<redacted-email>",
+    "job_id": 699719992330798,
+    "run_as_user_name": "<redacted-email>",
+    "settings": {
+      "deployment": {
+        "kind": "BUNDLE",
+        "metadata_file_path": "/Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/state/metadata.json"
+      },
+      "edit_mode": "UI_LOCKED",
+      "email_notifications": {},
+      "environments": [
+        {
+          "environment_key": "core_prep",
+          "spec": {
+            "dependencies": [
+              "pyyaml==6.0.3"
+            ],
+            "environment_version": "4"
+          }
+        }
+      ],
+      "format": "MULTI_TASK",
+      "max_concurrent_runs": 1,
+      "name": "aggiepulse_core_refresh",
+      "queue": {
+        "enabled": true
+      },
+      "schedule": {
+        "pause_status": "UNPAUSED",
+        "quartz_cron_expression": "0 0/15 * * * ?",
+        "timezone_id": "UTC"
+      },
+      "tasks": [
+        {
+          "disabled": false,
+          "email_notifications": {},
+          "environment_key": "core_prep",
+          "run_if": "ALL_SUCCESS",
+          "spark_python_task": {
+            "parameters": [
+              "--seeds",
+              "/Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/seeds"
+            ],
+            "python_file": "/Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/scripts/pipeline_core/prepare.py"
+          },
+          "task_key": "prepare_gtfs_and_seeds",
+          "timeout_seconds": 0
+        },
+        {
+          "depends_on": [
+            {
+              "task_key": "prepare_gtfs_and_seeds"
+            }
+          ],
+          "disabled": false,
+          "email_notifications": {},
+          "pipeline_task": {
+            "full_refresh": false,
+            "pipeline_id": "206b4370-b5cc-48eb-8eba-932dcea5dc95"
+          },
+          "run_if": "ALL_SUCCESS",
+          "task_key": "refresh_core",
+          "timeout_seconds": 0
+        }
+      ],
+      "timeout_seconds": 0,
+      "webhook_notifications": {}
+    }
+  },
+  "job_run": {
+    "cleanup_duration": 0,
+    "creator_user_name": "<redacted-email>",
+    "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+    "end_time": 1794082717754,
+    "execution_duration": 0,
+    "job_id": 699719992330798,
+    "job_run_id": 287382191662044,
+    "number_in_job": 287382191662044,
+    "original_attempt_run_id": 287382191662044,
+    "run_duration": 214278,
+    "run_id": 287382191662044,
+    "run_name": "aggiepulse_core_refresh",
+    "run_page_url": "https://dbc-595c228e-76f6.cloud.databricks.com/?o=7474654155800707#job/699719992330798/run/287382191662044",
+    "run_type": "JOB_RUN",
+    "schedule": {
+      "pause_status": "UNPAUSED",
+      "quartz_cron_expression": "0 0/15 * * * ?",
+      "timezone_id": "UTC"
+    },
+    "setup_duration": 0,
+    "start_time": 1794082503476,
+    "state": {
+      "life_cycle_state": "TERMINATED",
+      "result_state": "SUCCESS",
+      "state_message": "",
+      "user_cancelled_or_timedout": false
+    },
+    "status": {
+      "state": "TERMINATED",
+      "termination_details": {
+        "code": "SUCCESS",
+        "message": "",
+        "type": "SUCCESS"
+      }
+    },
+    "tasks": [
+      {
+        "attempt_number": 0,
+        "cleanup_duration": 0,
+        "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+        "end_time": 1794082534983,
+        "environment_key": "core_prep",
+        "execution_duration": 28000,
+        "run_id": 232029124148510,
+        "run_if": "ALL_SUCCESS",
+        "run_page_url": "https://dbc-595c228e-76f6.cloud.databricks.com/?o=7474654155800707#job/699719992330798/run/232029124148510",
+        "setup_duration": 3000,
+        "spark_python_task": {
+          "parameters": [
+            "--seeds",
+            "/Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/seeds"
+          ],
+          "python_file": "/Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/scripts/pipeline_core/prepare.py"
+        },
+        "start_time": 1794082503524,
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        },
+        "status": {
+          "state": "TERMINATED",
+          "termination_details": {
+            "code": "SUCCESS",
+            "message": "",
+            "type": "SUCCESS"
+          }
+        },
+        "task_key": "prepare_gtfs_and_seeds"
+      },
+      {
+        "attempt_number": 0,
+        "cleanup_duration": 0,
+        "depends_on": [
+          {
+            "task_key": "prepare_gtfs_and_seeds"
+          }
+        ],
+        "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+        "end_time": 1794082717524,
+        "execution_duration": 182000,
+        "pipeline_task": {
+          "full_refresh": false,
+          "pipeline_id": "206b4370-b5cc-48eb-8eba-932dcea5dc95"
+        },
+        "run_id": 417559007167724,
+        "run_if": "ALL_SUCCESS",
+        "run_page_url": "https://dbc-595c228e-76f6.cloud.databricks.com/?o=7474654155800707#job/699719992330798/run/417559007167724",
+        "setup_duration": 0,
+        "start_time": 1794082535335,
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        },
+        "status": {
+          "state": "TERMINATED",
+          "termination_details": {
+            "code": "SUCCESS",
+            "message": "",
+            "type": "SUCCESS"
+          }
+        },
+        "task_key": "refresh_core"
+      }
+    ],
+    "trigger": "PERIODIC"
+  }
+}
