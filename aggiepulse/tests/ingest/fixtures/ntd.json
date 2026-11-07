@@ -1,0 +1,50 @@
+{
+  "ingest_ts": "2026-11-07T19:28:02.079676+00:00",
+  "query_url": "https://data.transportation.gov/resource/8bui-9xvu.json",
+  "query_params": {
+    "ntd_id": "60278",
+    "$limit": 1000,
+    "$offset": 0,
+    "$order": "date,mode,tos,:id"
+  },
+  "payload": [
+    {
+      "ntd_id": "60278",
+      "agency": "Texas A&M University",
+      "mode_type_of_service_status": "Active",
+      "reporter_type": "Full Reporter",
+      "uace_cd": "18748",
+      "uza_name": "College Station--Bryan, TX",
+      "mode": "MB",
+      "tos": "DO",
+      "_3_mode": "Bus",
+      "date": "2024-09-01T00:00:00.000",
+      "upt": "1003376",
+      "voms": "66",
+      "vrh": "16767",
+      "vrm": "194449",
+      "agency_mode_tos_date": "60278_MB_DO_Active_Full Reporter_18748_2024-09-01",
+      "state": "TX",
+      "fta_region": "6"
+    },
+    {
+      "ntd_id": "60278",
+      "agency": "Texas A&M University",
+      "mode_type_of_service_status": "Active",
+      "reporter_type": "Full Reporter",
+      "uace_cd": "18748",
+      "uza_name": "College Station--Bryan, TX",
+      "mode": "MB",
+      "tos": "DO",
+      "_3_mode": "Bus",
+      "date": "2024-10-01T00:00:00.000",
+      "upt": "971088",
+      "voms": "66",
+      "vrh": "18050",
+      "vrm": "210771",
+      "agency_mode_tos_date": "60278_MB_DO_Active_Full Reporter_18748_2024-10-01",
+      "state": "TX",
+      "fta_region": "6"
+    }
+  ]
+}
