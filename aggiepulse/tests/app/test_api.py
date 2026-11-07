@@ -208,3 +208,14 @@ def test_cached_vehicle_metadata_age_advances(monkeypatch):
     monkeypatch.setattr(module, 'refresh_vehicle_ages', lambda result: {**result, 'age_s': 30})
     assert data.get('vehicles')['age_s'] == 30
     backend.hot_snapshot.assert_called_once()
+
+
+def test_databricks_queries_are_constant_and_reject_unknown_datasets():
+    import pytest
+
+    from app.backend.data import DatabricksBackend
+
+    for statement in DatabricksBackend.QUERIES.values():
+        assert statement.startswith("SELECT ") and "{" not in statement
+    with pytest.raises(ValueError):
+        DatabricksBackend().query("vehicles; DROP TABLE transit.gold.predictions")

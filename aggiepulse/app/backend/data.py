@@ -173,12 +173,24 @@ def latest_base():
 
 
 class DatabricksBackend:
-    TABLES: ClassVar[dict[str, str]] = {
-        "vehicles": "silver.vehicle_latest",
-        "events": "silver.events",
-        "alerts": "silver.service_alerts",
-        "predictions": "gold.predictions_latest",
-        "history": "gold.route_dir_15m",
+    # Complete, constant statements: no SQL is ever assembled from runtime values.
+    # To add a dataset, add a full statement here; never interpolate input into SQL.
+    QUERIES: ClassVar[dict[str, str]] = {
+        "vehicles": "SELECT * FROM transit.silver.vehicle_latest LIMIT 10000",
+        "events": (
+            "SELECT * FROM transit.silver.events"
+            " WHERE start_ts BETWEEN current_timestamp()"
+            " AND current_timestamp() + INTERVAL 7 DAYS"
+            " AND NOT coalesce(is_canceled, false)"
+            " ORDER BY significance DESC LIMIT 10000"
+        ),
+        "alerts": "SELECT * FROM transit.silver.service_alerts LIMIT 10000",
+        "predictions": "SELECT * FROM transit.gold.predictions_latest LIMIT 10000",
+        "history": (
+            "SELECT * FROM transit.gold.route_dir_15m"
+            " WHERE data_origin = 'observed'"
+            " ORDER BY window_start DESC LIMIT 10000"
+        ),
     }
 
     def client(self):
@@ -198,17 +210,13 @@ class DatabricksBackend:
             return json.load(stream)
 
     def query(self, dataset):
+        statement = self.QUERIES.get(dataset)
+        if statement is None:
+            raise ValueError(f"Unknown dataset: {dataset!r}")
         client = self.client()
         result = client.statement_execution.execute_statement(
             warehouse_id=os.getenv("DATABRICKS_WAREHOUSE_ID", "3c5b1dbf21774cde"),
-            statement=f"SELECT * FROM transit.{self.TABLES[dataset]} "
-            + (
-                {
-                    "events": "WHERE start_ts BETWEEN current_timestamp() AND current_timestamp() + INTERVAL 7 DAYS AND NOT coalesce(is_canceled, false) ORDER BY significance DESC",
-                    "history": "WHERE data_origin = 'observed' ORDER BY window_start DESC",
-                }.get(dataset, "")
-            )
-            + " LIMIT 10000",
+            statement=statement,
             wait_timeout="50s",
         )
         if not result.status or result.status.state.value != "SUCCEEDED":
