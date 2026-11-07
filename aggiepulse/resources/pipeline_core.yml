@@ -1,0 +1,46 @@
+resources:
+  pipelines:
+    aggiepulse_core:
+      name: aggiepulse_core
+      catalog: transit
+      schema: silver
+      serverless: true
+      continuous: false
+      channel: CURRENT
+      edition: ADVANCED
+      libraries:
+        - file:
+            path: ../pipelines/core/core.py
+      configuration:
+        aggiepulse.catalog: transit
+        aggiepulse.root: /Volumes/transit/raw
+        aggiepulse.core_path: ${workspace.file_path}/pipelines/core
+        spark.sql.session.timeZone: UTC
+      environment:
+        dependencies:
+          - pyyaml==6.0.3
+  jobs:
+    # No schedule of its own: aggiepulse_ops_refresh runs this job every 15 min, then the ops pipeline.
+    aggiepulse_core_refresh:
+      name: aggiepulse_core_refresh
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: core_prep
+          spec:
+            environment_version: '4'
+            dependencies:
+              - pyyaml==6.0.3
+      tasks:
+        - task_key: prepare_gtfs_and_seeds
+          environment_key: core_prep
+          spark_python_task:
+            python_file: ../scripts/pipeline_core/prepare.py
+            parameters:
+              - --seeds
+              - ${workspace.file_path}/seeds
+        - task_key: refresh_core
+          depends_on:
+            - task_key: prepare_gtfs_and_seeds
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.aggiepulse_core.id}
+            full_refresh: false
