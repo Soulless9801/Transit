@@ -10,25 +10,74 @@ Consequently `resources/jobs_ingest.yml` deploys only `ingest_weather_hourly`: o
 
 Full `python -m aggiepulse.ingest all` remains a laptop operation because four required serverless domains fail DNS. No daily all-sources serverless job is deployed. A future Databricks network-policy change must be followed by a fresh serverless probe before enabling full batch or collector jobs. `python -m aggiepulse.platform.batch all --data-root /Volumes/transit/raw` already provides the local-staging adapter for a future daily task without changing the ingest modules.
 
-`resources/jobs_collector.yml` documents why no collector resource is deployed. The laptop collector remains unchanged at its existing 30-second cadence. There is no Databricks TripSpark poller, no extra GetVehicles traffic, and no continuously running serverless job. No chunked collector option is needed or enabled while TripSpark egress fails.
+`resources/jobs_collector.yml` documents why no collector resource is deployed. The laptop collector remains unchanged at its existing 30-second cadence. There is no Databricks TripSpark poller, no extra GetVehicles traffic, and no continuously running serverless job. The laptop uses five-minute vehicle files to reduce immutable-file ingestion delay; the default collector rotation remains hourly.
 
 ## Start the sync loop
 
 ```sh
-cd /Users/jboi/Projects/Transit/aggiepulse && bash scripts/platform/run_sync_loop.sh
+cd /Users/jboi/Projects/Transit/aggiepulse
+nohup ./scripts/collector/run_backup_collector.sh --interval 30 --base-interval 3600 --rotate-minutes 5 >/dev/null 2>&1 &
+nohup bash scripts/platform/run_sync_loop.sh --rotate-minutes 5 >>data/logs/platform_sync.log 2>&1 &
+nohup bash scripts/platform/run_publish_live_loop.sh --interval 30 >>data/logs/publish_live.log 2>&1 &
 ```
 
-The runner uploads immediately, then every 300 seconds. Stop with Ctrl-C. It does not daemonize itself. No loop has been left running by this implementation.
+The sync runner uploads immediately, then every 300 seconds. The live publisher runs every 30 seconds. Stop each runner with SIGTERM; the collector and publisher runners forward it to their child. Logs remain under `data/logs/`. Run only one instance of each loop.
 
 For a single pass:
 
 ```sh
-PATH=/opt/homebrew/bin:$PATH uv run python scripts/platform/sync_to_volume.py
+PATH=/opt/homebrew/bin:$PATH uv run python scripts/platform/sync_to_volume.py --rotate-minutes 5
 ```
 
-The sync preserves all paths relative to `data/landing/` under `/Volumes/transit/raw/landing/`. It skips files modified within 120 seconds, all TripSpark vehicle files from the current/future UTC hour, unknown vehicle filenames, and hidden/symlink files. It snapshots stable inputs locally, verifies size/mtime did not change during snapshotting, creates Volume parent directories, copies without `--overwrite`, then downloads and verifies the remote SHA-256 before recording success. If an object already exists, the CLI skips uploading it and the same verification still runs. A mismatch stops the pass; it never repairs a conflict by overwriting the immutable object.
+The sync preserves all paths relative to `data/landing/` under `/Volumes/transit/raw/landing/`. It skips files modified within 120 seconds, TripSpark vehicle files whose filename timestamp plus rotation length has not elapsed, unknown vehicle filenames, and hidden/symlink files. It snapshots stable inputs locally, verifies size/mtime did not change during snapshotting, creates Volume parent directories, copies without `--overwrite`, then downloads and verifies the remote SHA-256 before recording success. If an object already exists, the CLI skips uploading it and the same verification still runs. A mismatch stops the pass; it never repairs a conflict by overwriting the immutable object.
+
+Hourly names always use a 60-minute closure rule, including previously uploaded
+hourly files. Minute names use `--rotate-minutes` (default 5); match the collector.
+The 120-second mtime guard still applies to every file. Core Auto Loader accepts
+both names with `*.json*`; source-host extraction supports both timestamp lengths.
 
 The manifest is `data/platform_sync_manifest.json` (path, size, sha256 for each completed upload), with an advisory lock to prevent overlapping local runners. Keep one manifest per destination Volume when using custom `--volume-root` values. A crash before manifest persistence is safe: the next pass verifies the existing object. Changed local files that were already uploaded cause an explicit immutable-file conflict. The loop retries failed passes next cycle.
+
+
+## Live vehicle sidecar and app selection
+
+`run_publish_live_loop.sh` supplies `databricks-sdk` through `uv run --with`, using
+profile `transit`. It reads complete gzip records from local landing files,
+selects the latest HTTP-200 successful vehicle poll (including empty polls), and
+uses `aggiepulse.collector.parse` with the latest successful base metadata for
+route short names and direction colors. Partial final gzip members and failed
+polls retain the preceding success. It never requests TripSpark data.
+
+The sidecar creates managed Volume `transit.raw.live` if absent and overwrites
+only `/Volumes/transit/raw/live/latest_vehicles.json` using the
+[SDK Files API](https://databricks-sdk-py.readthedocs.io/en/stable/workspace/files/files.html).
+The JSON contains `snapshot_ts`, `poll_ingest_ts`, `poll_id`, and `vehicles`.
+Errors log one compact warning and retry on the next cycle. For a single pass:
+
+```sh
+uv run --with databricks-sdk python scripts/platform/publish_live.py --once
+```
+
+The Databricks app checks this file first, requiring both publication and poll
+age to be at most 180 seconds. Its source is `hot-path`. On a stale/missing file
+it uses fresh Silver rows (`databricks`, GPS within ten minutes), then the
+packaged fallback (`local-snapshot`). A fresh empty hot poll remains empty.
+`/api/meta` includes source, fallback reason, poll/publish timestamps, latest GPS,
+and `age_s` (poll age for hot data; latest GPS age otherwise). Vehicle rows also
+carry their source. The app bundle declares READ_VOLUME on `transit.raw.live`;
+its service principal also needs USE CATALOG/SCHEMA (already granted here).
+
+Redeploy after backend changes:
+
+```sh
+databricks bundle deploy -p transit
+databricks apps deploy aggiepulse -p transit --source-code-path /Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/app
+```
+
+The warm path still depends on the mtime guard, sync cadence, the next 15-minute
+core/ops trigger and pipeline execution time. The hot path is independent of
+pipeline scheduling. Historical verification below describes the earlier hourly
+configuration; current process and latency measurements are in the rollout report.
 
 ## Laptop daily batch
 

@@ -254,6 +254,50 @@ def local_history():
     ]
 
 
+def timestamp(value):
+    parsed = datetime.fromisoformat(str(value))
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
+def select_vehicles(backend, now=None):
+    """Prefer a fresh poll, then fresh Silver GPS, then the packaged snapshot."""
+    now = now or datetime.now(UTC)
+    errors = []
+    try:
+        hot = backend.hot_snapshot()
+        # Republishing an old poll must never make it appear live.
+        ages = [(now - timestamp(hot[k])).total_seconds() for k in ('snapshot_ts', 'poll_ingest_ts')]
+        if all(-60 <= age <= 180 for age in ages) and isinstance(hot['vehicles'], list):
+            return hot['vehicles'], 'hot-path', None, {k: hot[k] for k in ('snapshot_ts', 'poll_ingest_ts')}
+        errors.append('Hot path stale')
+    except Exception as exc:  # noqa: BLE001 - keep fallback available on SDK failures
+        errors.append('Hot path: ' + str(exc)[:150])
+    try:
+        rows = backend.query('vehicles')
+        fresh = [r for r in rows if r.get('ts_gps') and -60 <= (now - timestamp(r['ts_gps'])).total_seconds() <= 600]
+        if fresh:
+            return fresh, 'databricks', '; '.join(errors), {}
+        errors.append('Silver vehicle_latest empty or stale')
+    except Exception as exc:  # noqa: BLE001 - keep fallback available on SDK failures
+        errors.append('Silver: ' + str(exc)[:150])
+    frozen = Path(__file__).resolve().parents[1] / 'fallback/vehicles.json'
+    return json.loads(frozen.read_text()) if frozen.exists() else [], 'local-snapshot', '; '.join(errors), {}
+
+
+def refresh_vehicle_ages(result, now=None):
+    now = now or datetime.now(UTC)
+    gps = []
+    for row in result['data']:
+        if row.get('ts_gps'):
+            stamp = timestamp(row['ts_gps'])
+            gps.append(stamp)
+            row['gps_age_s'] = max(0, (now - stamp).total_seconds())
+    result['latest_gps_ts'] = max(gps).isoformat() if gps else None
+    reference = result.get('poll_ingest_ts') or result['latest_gps_ts']
+    result['age_s'] = max(0, (now - timestamp(reference)).total_seconds()) if reference else None
+    return result
+
+
 class Datasets:
     def __init__(self):
         self.cache = {}
@@ -262,10 +306,15 @@ class Datasets:
         mode = os.getenv("AGGIEPULSE_BACKEND", "local")
         key = (mode, name)
         if key in self.cache and time.monotonic() < self.cache[key][0]:
-            return self.cache[key][1]
+            cached = self.cache[key][1]
+            return refresh_vehicle_ages(cached) if name == 'vehicles' else cached
         error = None
         rows = None
-        if mode == "databricks":
+        metadata = {}
+        vehicle_source = None
+        if mode == "databricks" and name == "vehicles":
+            rows, vehicle_source, error, metadata = select_vehicles(DatabricksBackend())
+        elif mode == "databricks":
             try:
                 rows = DatabricksBackend().query(name)
             except Exception as exc:  # noqa: BLE001
@@ -275,6 +324,7 @@ class Datasets:
             if rows is not None
             else ("mock" if name == "predictions" else "local")
         )
+        source = vehicle_source or source
         if rows is None:
             rows = {
                 "vehicles": LocalBackend().latest,
@@ -304,9 +354,7 @@ class Datasets:
                         0,
                         (
                             datetime.now(UTC)
-                            - datetime.fromisoformat(str(row["ts_gps"])).replace(
-                                tzinfo=UTC
-                            )
+                            - timestamp(row["ts_gps"])
                         ).total_seconds(),
                     )
                 route = next(
@@ -319,7 +367,7 @@ class Datasets:
                 )
                 row.update(
                     route_id=route.get("route_id", row.get("route_id")),
-                    route_color=route.get("route_color"),
+                    route_color=row.get("route_color") or route.get("route_color"),
                     provenance="MEASURED · APC",
                 )
             if name == "events":
@@ -329,7 +377,10 @@ class Datasets:
             "source": source,
             "backend": mode,
             "fallback_reason": error,
+            **metadata,
         }
+        if name == 'vehicles':
+            refresh_vehicle_ages(result)
         self.cache[key] = (time.monotonic() + 15, result)
         return result
 

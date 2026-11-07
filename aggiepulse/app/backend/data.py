@@ -181,14 +181,24 @@ class DatabricksBackend:
         "history": "gold.route_dir_15m",
     }
 
-    def query(self, dataset):
+    def client(self):
         from databricks.sdk import WorkspaceClient
         from databricks.sdk.core import Config
 
         config = (
-            Config() if os.getenv("DATABRICKS_CLIENT_ID") else Config(profile="transit")
+            Config(http_timeout_seconds=10, retry_timeout_seconds=10)
+            if os.getenv("DATABRICKS_CLIENT_ID")
+            else Config(profile="transit", http_timeout_seconds=10, retry_timeout_seconds=10)
         )
-        client = WorkspaceClient(config=config)
+        return WorkspaceClient(config=config)
+
+    def hot_snapshot(self):
+        response = self.client().files.download('/Volumes/transit/raw/live/latest_vehicles.json')
+        with response.contents as stream:
+            return json.load(stream)
+
+    def query(self, dataset):
+        client = self.client()
         result = client.statement_execution.execute_statement(
             warehouse_id=os.getenv("DATABRICKS_WAREHOUSE_ID", "3c5b1dbf21774cde"),
             statement=f"SELECT * FROM transit.{self.TABLES[dataset]} "

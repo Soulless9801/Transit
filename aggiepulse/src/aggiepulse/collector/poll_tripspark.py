@@ -68,11 +68,14 @@ def _host() -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", socket.gethostname())
 
 
-def vehicles_path(when: datetime, hostname: str) -> Path:
-    return (
-        landing_dir("tripspark_vehicles", when)
-        / f"vehicles_{when:%Y%m%dT%H}_{hostname}.jsonl.gz"
+def vehicles_path(when: datetime, hostname: str, rotate_minutes: int = 60) -> Path:
+    if not 1 <= rotate_minutes <= 60 or 60 % rotate_minutes:
+        raise ValueError("rotate_minutes must divide 60")
+    window = datetime.fromtimestamp(
+        math.floor(when.timestamp() / (rotate_minutes * 60)) * rotate_minutes * 60, UTC
     )
+    stamp = window.strftime("%Y%m%dT%H" if rotate_minutes == 60 else "%Y%m%dT%H%M")
+    return landing_dir("tripspark_vehicles", window) / f"vehicles_{stamp}_{hostname}.jsonl.gz"
 
 
 def _base_path(when: datetime, hostname: str) -> Path:
@@ -99,6 +102,7 @@ def run(
     *,
     interval: float = 30,
     base_interval: float = 3600,
+    rotate_minutes: int = 60,
     max_polls: int | None = None,
     stop: threading.Event | None = None,
     client: TripSparkClient | None = None,
@@ -112,6 +116,8 @@ def run(
         or (max_polls is not None and max_polls <= 0)
     ):
         raise ValueError("Intervals and max_polls must be positive")
+    if not 1 <= rotate_minutes <= 60 or 60 % rotate_minutes:
+        raise ValueError("rotate_minutes must divide 60")
     stop = stop if stop is not None else threading.Event()
     client = client if client is not None else TripSparkClient(wait=stop.wait)
     hostname = _host()
@@ -190,7 +196,7 @@ def run(
                 "payload": payload,
                 "error": error,
             }
-            path = vehicles_path(when, hostname)
+            path = vehicles_path(when, hostname, rotate_minutes)
             append_gzip_json(path, record)
             state["polls"] += 1
             state["last_poll_ts"] = when.isoformat()
@@ -239,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--interval", type=_positive, default=30)
     parser.add_argument("--base-interval", type=_positive, default=3600)
+    parser.add_argument("--rotate-minutes", type=int, choices=[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60], default=60)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--max-polls", type=_positive_int)
     args = parser.parse_args(argv)
@@ -254,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         state = run(
             interval=args.interval,
             base_interval=args.base_interval,
+            rotate_minutes=args.rotate_minutes,
             max_polls=1 if args.once else args.max_polls,
             stop=stop,
         )

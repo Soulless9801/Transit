@@ -10,25 +10,31 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from aggiepulse.common.paths import data_root
 
-HOUR = re.compile(r'^vehicles_(\d{8}T\d{2})(?:_|\d)')
+WINDOW = re.compile(r'^vehicles_(\d{8}T\d{2}(?:\d{2})?)_[^/]+\.jsonl\.gz$')
 
 
-def eligible(path: Path, relative: Path, now: datetime, guard_seconds: float = 120) -> bool:
+def eligible(path: Path, relative: Path, now: datetime, guard_seconds: float = 120,
+             rotate_minutes: int = 5) -> bool:
     if not path.is_file() or path.is_symlink() or any(p.startswith('.') for p in relative.parts):
         return False
     if now.timestamp() - path.stat().st_mtime < guard_seconds:
         return False
     if relative.parts[0] == 'tripspark_vehicles':
-        match = HOUR.match(path.name)
+        match = WINDOW.match(path.name)
         # Unknown collector names cannot be proven closed.
         if not match:
             return False
-        if match[1] >= now.astimezone(UTC).strftime('%Y%m%dT%H'):
+        try:
+            hourly = len(match[1]) == 11
+            start = datetime.strptime(match[1], '%Y%m%dT%H' if hourly else '%Y%m%dT%H%M').replace(tzinfo=UTC)
+        except ValueError:
+            return False
+        if now < start + timedelta(minutes=60 if hourly else rotate_minutes):
             return False
     return True
 
@@ -62,7 +68,7 @@ class CliVolume:
 
 
 def sync_once(root: Path, volume_root: str, manifest_path: Path, *, now=None,
-              guard_seconds: float = 120, backend=None) -> dict:
+              guard_seconds: float = 120, rotate_minutes: int = 5, backend=None) -> dict:
     now = now or datetime.now(UTC)
     backend = backend or CliVolume()
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -75,7 +81,7 @@ def sync_once(root: Path, volume_root: str, manifest_path: Path, *, now=None,
             if not path.is_file():
                 continue
             relative = path.relative_to(root)
-            if not eligible(path, relative, now, guard_seconds):
+            if not eligible(path, relative, now, guard_seconds, rotate_minutes):
                 counters['deferred'] += 1
                 continue
             key = relative.as_posix()
@@ -112,11 +118,12 @@ def main(argv=None):
     parser.add_argument('--manifest', type=Path, default=data_root() / 'platform_sync_manifest.json')
     parser.add_argument('--guard-seconds', type=float, default=120)
     parser.add_argument('--profile', default='transit')
+    parser.add_argument('--rotate-minutes', type=int, choices=[1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60], default=5)
     args = parser.parse_args(argv)
     if args.guard_seconds < 120:
         parser.error('--guard-seconds must be at least 120')
     sync_once(args.landing_root, args.volume_root, args.manifest,
-              guard_seconds=args.guard_seconds, backend=CliVolume(args.profile))
+              guard_seconds=args.guard_seconds, rotate_minutes=args.rotate_minutes, backend=CliVolume(args.profile))
 
 
 if __name__ == '__main__':
