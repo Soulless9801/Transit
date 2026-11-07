@@ -1,0 +1,117 @@
+[
+  {
+    "routeKey": "3f158c8c-7e8b-46c1-913c-74a13e06f5ba",
+    "vehiclesByDirections": [
+      {
+        "directionKey": "72bff0d1-06b8-408f-87e9-af43e7391031",
+        "vehicles": [
+          {
+            "key": "448c7dc1-e837-4eff-939f-85baff75aacc",
+            "name": "B2011",
+            "location": {
+              "lastGpsDate": "2026-11-07T13:26:35",
+              "latitude": 30.614531000000003,
+              "longitude": -96.34246499999999,
+              "speed": 0.0,
+              "heading": 57.70000076293945
+            },
+            "directionKey": "72bff0d1-06b8-408f-87e9-af43e7391031",
+            "directionName": "Campus Circulator",
+            "routeKey": "3f158c8c-7e8b-46c1-913c-74a13e06f5ba",
+            "passengerCapacity": 85,
+            "passengersOnboard": 2,
+            "amenities": [
+              {
+                "name": "Air Conditioning",
+                "iconName": "snowflake"
+              },
+              {
+                "name": "Wheelchair Lift",
+                "iconName": "wheelchair"
+              }
+            ],
+            "isExtraTrip": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "routeKey": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+    "vehiclesByDirections": [
+      {
+        "directionKey": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+        "vehicles": [
+          {
+            "key": "1d66d52c-0a4d-45b7-a9ee-279b09a3ce19",
+            "name": "B2022",
+            "location": {
+              "lastGpsDate": "2026-11-07T13:26:39",
+              "latitude": 30.614009499999998,
+              "longitude": -96.34319133333332,
+              "speed": 0.0,
+              "heading": 50.36000061035156
+            },
+            "directionKey": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+            "directionName": "West Campus Circulator",
+            "routeKey": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+            "passengerCapacity": 85,
+            "passengersOnboard": 14,
+            "amenities": [
+              {
+                "name": "Air Conditioning",
+                "iconName": "snowflake"
+              },
+              {
+                "name": "Wheelchair Lift",
+                "iconName": "wheelchair"
+              }
+            ],
+            "isExtraTrip": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "routeKey": "77866539-a0de-4c00-b082-a3c1bfb78515",
+    "vehiclesByDirections": [
+      {
+        "directionKey": "ef426669-cb0b-45e8-a282-75b0fdb60ae7",
+        "vehicles": [
+          {
+            "key": "bdd49e1a-fc67-4a5f-93dc-310da866638d",
+            "name": "B2010",
+            "location": {
+              "lastGpsDate": "2026-11-07T13:26:30",
+              "latitude": 30.66624883333333,
+              "longitude": -96.3501575,
+              "speed": 1.0710533608725046,
+              "heading": 354.3599853515625
+            },
+            "directionKey": "ef426669-cb0b-45e8-a282-75b0fdb60ae7",
+            "directionName": "MSC",
+            "routeKey": "77866539-a0de-4c00-b082-a3c1bfb78515",
+            "passengerCapacity": 85,
+            "passengersOnboard": 3,
+            "amenities": [
+              {
+                "name": "Air Conditioning",
+                "iconName": "snowflake"
+              },
+              {
+                "name": "Wheelchair Lift",
+                "iconName": "wheelchair"
+              }
+            ],
+            "isExtraTrip": false
+          }
+        ]
+      },
+      {
+        "directionKey": "826867ad-09ef-4725-931c-345d3e090a43",
+        "vehicles": []
+      }
+    ]
+  }
+]

@@ -1,0 +1,891 @@
+{
+  "routes": [
+    {
+      "key": "78e16ff8-3888-4113-a879-eda13ae50498",
+      "name": "Bonfire",
+      "shortName": "01",
+      "directionList": [
+        {
+          "direction": {
+            "key": "12a63306-0fbf-42c5-bb67-4ba10d3ccb75",
+            "name": "Campus Circulator"
+          },
+          "destination": "Campus Circulator",
+          "lineColor": "#D64427",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "88aab305-8a13-4b49-adc0-eed3eb17f927",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3859,
+            3861
+          ]
+        }
+      ]
+    },
+    {
+      "key": "3f158c8c-7e8b-46c1-913c-74a13e06f5ba",
+      "name": "Break, Nights, & Weekends",
+      "shortName": "01-04",
+      "directionList": [
+        {
+          "direction": {
+            "key": "72bff0d1-06b8-408f-87e9-af43e7391031",
+            "name": "Campus Circulator"
+          },
+          "destination": "Campus Circulator",
+          "lineColor": "#D64427",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "de020c48-7383-42a4-8371-bcffc03666ad",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3859,
+            3861
+          ]
+        }
+      ]
+    },
+    {
+      "key": "710d25b3-8873-446d-9d12-62baccbc6132",
+      "name": "Yell Practice",
+      "shortName": "03",
+      "directionList": [
+        {
+          "direction": {
+            "key": "c744ac40-0be6-4cbe-af2f-1de4f6ebf237",
+            "name": "to White Creek"
+          },
+          "destination": "White Creek",
+          "lineColor": "#467BA7",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "5490b43d-9320-415a-b881-34a4f16d7f0b",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "2ea64c35-81e7-41ba-a563-dc4e3453d342",
+            "name": "to MSC"
+          },
+          "destination": "MSC",
+          "lineColor": "#467BA7",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "3fb5e577-9d62-4f89-b230-769a69954e94",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "8e4ce203-ce21-4f50-b584-2a63b3940a8a",
+      "name": "Break, Nights, & Weekends",
+      "shortName": "03-05",
+      "directionList": [
+        {
+          "direction": {
+            "key": "d41089d8-10c8-4939-9b25-8958475aaa3e",
+            "name": "Campus Circulator"
+          },
+          "destination": "West Campus Circulator",
+          "lineColor": "#38538E",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "1b7fd86c-26e3-4774-afd9-f1bc4cba9df8",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3859,
+            3861
+          ]
+        }
+      ]
+    },
+    {
+      "key": "abe4be4e-e164-4848-a25a-2bcb6fec85a1",
+      "name": "Gig Em",
+      "shortName": "04",
+      "directionList": [
+        {
+          "direction": {
+            "key": "075db8aa-2945-41fb-9358-753ad4eada4d",
+            "name": "Outbound"
+          },
+          "destination": "Becky Gates Center",
+          "lineColor": "#4B1212",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "3bed2ce1-d288-49ca-b9d2-474c648d2d64",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "b2e1d789-f1fe-428f-9d59-fc6774d0ec88",
+            "name": "Inbound"
+          },
+          "destination": "Asbury Water Tower",
+          "lineColor": "#4B1212",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "b0e8b4f3-866f-4997-8139-c1ce8821cbc7",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "4eaac89c-658f-4e8f-8a50-ea93c61a88d6",
+      "name": "Bush School",
+      "shortName": "05",
+      "directionList": [
+        {
+          "direction": {
+            "key": "8ec688ee-0774-4c10-97bd-1da444f5ca72",
+            "name": "to UPD"
+          },
+          "destination": "UPD",
+          "lineColor": "#2D2E73",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "5039dadc-5f4f-48f3-a670-c6e962a06365",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "19290a21-bfd5-432f-8e7f-6b54afcb070e",
+            "name": "to MSC"
+          },
+          "destination": "MSC",
+          "lineColor": "#2D2E73",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "d638c0d7-3c06-4ad3-adbc-f703d34d39c2",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3859,
+            3861
+          ]
+        }
+      ]
+    },
+    {
+      "key": "7d89c20d-c71e-467e-88f1-9780d72c38cd",
+      "name": "12th Man",
+      "shortName": "06",
+      "directionList": [
+        {
+          "direction": {
+            "key": "3d77175a-d440-45a4-91bc-b24490c0e977",
+            "name": "to GSC"
+          },
+          "destination": "GSC",
+          "lineColor": "#A84E9E",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "dd409f24-f862-42c3-a8c5-b4a13b8a1370",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "9f41fb22-6158-4699-888b-5a3fc830d921",
+            "name": "to MSC"
+          },
+          "destination": "MSC",
+          "lineColor": "#A84E9E",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "d6458b46-befb-4fcd-ad6b-ca0702b0fee6",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "066a3663-64a7-4c3e-b695-035c4d4a8ec2",
+      "name": "Airport",
+      "shortName": "07",
+      "directionList": [
+        {
+          "direction": {
+            "key": "bf55c9e3-35ed-4985-81a6-851968d802c5",
+            "name": "Campus Circulator"
+          },
+          "destination": "Easterwood Airport",
+          "lineColor": "#8D5022",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "b0fb67d7-4247-4c21-86aa-2d989762166f",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3860,
+            3862
+          ]
+        }
+      ]
+    },
+    {
+      "key": "0df01e51-638d-42e2-9f1b-b1e9f84fc18d",
+      "name": "Howdy",
+      "shortName": "08",
+      "directionList": [
+        {
+          "direction": {
+            "key": "853e98e4-b0a9-496f-92d5-d290bc1889b6",
+            "name": "to MSC"
+          },
+          "destination": "MSC",
+          "lineColor": "#7373A5",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "2d245955-4df8-4be8-8a95-3877ad600ee2",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "10836cc8-3c0f-47a7-959f-b7ba5bd7c6ae",
+            "name": "to Park West"
+          },
+          "destination": "Park West",
+          "lineColor": "#7373A5",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "6825b705-5279-4c22-b68d-424f182f0c62",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "77866539-a0de-4c00-b082-a3c1bfb78515",
+      "name": "Reveille",
+      "shortName": "12",
+      "directionList": [
+        {
+          "direction": {
+            "key": "826867ad-09ef-4725-931c-345d3e090a43",
+            "name": "Outbound"
+          },
+          "destination": "Blinn - Bryan",
+          "lineColor": "#2C5FA5",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "fc43e1cb-a979-4b47-bdb9-06014c8db1b7",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "ef426669-cb0b-45e8-a282-75b0fdb60ae7",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#2C5FA5",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "ec72309b-0c50-4db7-a77d-48e26c881201",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "ef756cf7-a7e0-4743-b564-2b8008b3c17f",
+      "name": "Old Army",
+      "shortName": "15",
+      "directionList": [
+        {
+          "direction": {
+            "key": "4c546c01-f5c4-4016-b789-c448c9a6de20",
+            "name": "Outbound"
+          },
+          "destination": "Villa Maria @ Green Street",
+          "lineColor": "#7A7B31",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "7620e499-b461-4fa1-b7a7-6dc70d1ffe39",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "50c6d792-8e9d-4cd5-84fa-4ae1600224a7",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#7A7B31",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "a35c395b-5760-488c-a75a-de5f47bf27b0",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "b1eedcd1-3d3f-488d-8a12-8aaabc2556fc",
+      "name": "Excel",
+      "shortName": "22",
+      "directionList": [
+        {
+          "direction": {
+            "key": "b3fdc646-11b0-4167-bc9a-cb6b1b0f1868",
+            "name": "Outbound"
+          },
+          "destination": "Scarlett O'Hara",
+          "lineColor": "#956D41",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "9d830735-3146-4aaf-82a6-2d29f1c4507e",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "cc92b256-8df3-4683-b2ce-933f577a8aee",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#956D41",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "1f071bf0-8362-406f-b76b-d3567de93cee",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "a93bbd78-0698-48d0-afe7-8f14b8544541",
+      "name": "Rudder",
+      "shortName": "26",
+      "directionList": [
+        {
+          "direction": {
+            "key": "ea6c2a12-e352-43f4-9f5e-ffe5169d8d12",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#D2188D",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "65c45e4e-2449-4fb9-8f9b-8d9e6894a16d",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "10bddcdb-2dd4-4ae8-bdf2-6a56e3546899",
+            "name": "Outbound"
+          },
+          "destination": "Wolf Pen Creek Park",
+          "lineColor": "#D2188D",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "bc72e9b7-7efd-417a-a775-f869f69bb886",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "66fce50c-dd49-44ce-bbad-7471bb3bbac4",
+      "name": "Ring Dance",
+      "shortName": "27",
+      "directionList": [
+        {
+          "direction": {
+            "key": "868dc691-a657-4353-a3de-472bfe61caaf",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#1A6634",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "c6554a98-6d50-4500-a60f-6996f48438ac",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "ec4a4e5a-54ef-459e-a44b-8ecb6b21416c",
+            "name": "Outbound"
+          },
+          "destination": "Wolf Pen Creek",
+          "lineColor": "#1A6634",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "17aa45a9-79dd-4c1b-bbdc-c046ea942b15",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "3c01aa06-5c43-492f-bd28-3b52a15e4980",
+      "name": "Elephant Walk",
+      "shortName": "31",
+      "directionList": [
+        {
+          "direction": {
+            "key": "7242c66a-bed0-4666-b372-ed500c8ab3ac",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#E42327",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "2b65c331-0288-4048-b08f-a15c7de925ad",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "b3a89dbd-023b-4054-b9c6-b4d8936d8799",
+            "name": "Outbound"
+          },
+          "destination": "Medina",
+          "lineColor": "#E42327",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "1cf8b1e6-fc08-4ae6-9197-b6b973470cd0",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "10fabc46-64b7-43c1-bd59-5d9a065255f0",
+      "name": "Fish Camp",
+      "shortName": "34",
+      "directionList": [
+        {
+          "direction": {
+            "key": "00b9e121-f1d1-4877-ae6f-6bc1a8c7bab3",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#A4647F",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "a5d25104-22fb-4a9e-9b79-16b32e6e81a7",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "c2d57e6c-b1f0-467f-8b23-ca56349bbe9c",
+            "name": "Outbound"
+          },
+          "destination": "Rock Prairie",
+          "lineColor": "#A4647F",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "6e6f9cec-ac44-4c10-888a-220766e261ef",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "eae3a476-4b67-4a51-81dc-eae6f1425a64",
+      "name": "Hullabaloo",
+      "shortName": "35",
+      "directionList": [
+        {
+          "direction": {
+            "key": "babe38ef-dead-4295-b46e-e088220578cc",
+            "name": "Outbound"
+          },
+          "destination": "Jones Butler @ Harvey Mitchell",
+          "lineColor": "#5D8060",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "8cca3270-3b38-41a1-9efd-8df490b5b95a",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "2db50a77-3128-48d1-80cb-1c553bad5f05",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#5D8060",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "5afba7a3-11a5-498f-a212-b8e41c506891",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3860,
+            3862
+          ]
+        }
+      ]
+    },
+    {
+      "key": "d2a19b5b-73fa-42e4-ab4f-ae6de24dd3f8",
+      "name": "Matthew Gaines",
+      "shortName": "36",
+      "directionList": [
+        {
+          "direction": {
+            "key": "6610cc03-2bca-4513-9b8d-9779fe83ea7f",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#088192",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "71a74a50-d6f9-4847-a2a8-7ea8b00486fc",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [
+            3856
+          ],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "408692c6-c303-4a63-8de0-5f2c9c2456e4",
+            "name": "Outbound"
+          },
+          "destination": "John Crompton Park",
+          "lineColor": "#088192",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "497edfbe-c910-4d3d-815a-c8a65cb496e6",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "daecb969-7235-4767-a21b-a940e40955f8",
+      "name": "Century Tree",
+      "shortName": "40",
+      "directionList": [
+        {
+          "direction": {
+            "key": "bb94a083-34ae-4a28-bbda-81dfb1d73971",
+            "name": "Outbound"
+          },
+          "destination": "Deacon West",
+          "lineColor": "#7D7C7C",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "e1963ae7-f874-46e6-86ba-0de2d48a7664",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "3757dd0e-dc87-486c-a2ef-f6b39834f62a",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#7D7C7C",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "c2f216db-7344-46e7-8309-2a66d3c55a50",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3860,
+            3862
+          ]
+        }
+      ]
+    },
+    {
+      "key": "555a56c3-c385-4dd3-9f22-6ce569569d36",
+      "name": "Break, Nights, & Weekends",
+      "shortName": "40-41",
+      "directionList": [
+        {
+          "direction": {
+            "key": "81ab786b-51bf-402b-90d4-640fdaf28550",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#3B3BEF",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "055aa4c4-0d7b-42d2-8eeb-ab14cf465b9b",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3860,
+            3862
+          ]
+        },
+        {
+          "direction": {
+            "key": "d0678783-e240-4beb-b996-a8bcd6ba5efc",
+            "name": "Outbound"
+          },
+          "destination": "Deacon West",
+          "lineColor": "#3B3BEF",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "f640f1aa-4c0d-485b-b02d-e041ad14262f",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "dcf227b5-026d-4392-89aa-19f14d118178",
+      "name": "Good Bull",
+      "shortName": "41",
+      "directionList": [
+        {
+          "direction": {
+            "key": "d051464c-21be-40e8-beb4-e7172e597ece",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#4DD8D2",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "b058928a-0694-4dcf-924d-3f6d7360be39",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": [
+            3860,
+            3862
+          ]
+        },
+        {
+          "direction": {
+            "key": "e6e1e677-aad1-4ff6-a633-4d4bad01153a",
+            "name": "Outbound"
+          },
+          "destination": "Deacon West",
+          "lineColor": "#4DD8D2",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "5103e170-a44d-4495-b201-4a4abc787b76",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "352a80ff-0785-44fb-8eed-d8f32835c6aa",
+      "name": "RELLIS",
+      "shortName": "47",
+      "directionList": [
+        {
+          "direction": {
+            "key": "2931ff7c-645c-4c35-9766-ed9c07f25d5b",
+            "name": "Outbound"
+          },
+          "destination": "RELLIS",
+          "lineColor": "#2A4244",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "6aca3d79-9261-4599-b344-400c7f8b5354",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        },
+        {
+          "direction": {
+            "key": "8a9129d5-e6da-47ba-9699-6142269993da",
+            "name": "Inbound"
+          },
+          "destination": "MSC",
+          "lineColor": "#2A4244",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "af372637-6304-43a5-aa85-ba55de61522c",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    },
+    {
+      "key": "ab374f65-de4d-4e55-ad1e-944ec271350b",
+      "name": "Ring Day",
+      "shortName": "RD",
+      "directionList": [
+        {
+          "direction": {
+            "key": "4b349b5b-f2cb-42ea-bdb5-7f8f454ff3ca",
+            "name": "Campus Circulator"
+          },
+          "destination": "Association of Former Students",
+          "lineColor": "#DC143C",
+          "textColor": "#FFFFFF",
+          "patternList": [
+            {
+              "key": "bc869684-7a84-4e35-8f94-8a2c15e4392a",
+              "isDisplay": true
+            }
+          ],
+          "serviceInterruptionKeys": [],
+          "upcomingServiceInterruptionKeys": []
+        }
+      ]
+    }
+  ]
+}
