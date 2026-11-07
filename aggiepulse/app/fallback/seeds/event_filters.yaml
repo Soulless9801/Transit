@@ -1,0 +1,41 @@
+version: 1
+source: https://calendar.tamu.edu/live/json/events/
+retrieved_date: '2026-11-07'
+timezone: America/Chicago
+normalization: HTML-unescape strings, trim whitespace, case-insensitive regex search; array fields match any member
+policy: Drop rules take precedence. Missing campus requires a known local venue or coordinates inside the local bbox; otherwise quarantine for review. Campus alone cannot establish a local physical event.
+local_bbox: [30.50, -96.60, 30.80, -96.20]
+drop_rules:
+  - {field: title, regex: '\b(hours|course support|group study)\b', reason: routine service or study availability}
+  - {field: is_canceled, equals: 1, reason: canceled}
+  - {field: is_online, equals: 1, reason: online}
+  - {field: location_title, regex: '\b(online|virtual|zoom|webex|microsoft teams)\b', reason: remote attendance}
+  - {field: online_url, regex: '.+', reason: remote-only unless explicitly hybrid; quarantine hybrid for review}
+  - {field: event_types_campus, regex: '^(Galveston|Qatar|McAllen|Fort Worth|Houston|Canyon|Dallas|Round Rock|Temple|Washington D\.C\.)$', reason: nonlocal campus}
+  - {field: location_title, regex: '\b(Galveston|Qatar|McAllen|Fort Worth|Houston|Dallas|Round Rock|Temple|Health Science Center)\b', reason: nonlocal or excluded Health Science Center site; review local HSC separately}
+  - {field: group_title, regex: '^(Law|Higher Education Center at McAllen)$', reason: observed nonlocal groups}
+# Do not drop Library, Academic Calendar, or Rec Sports groups wholesale.
+category_weights:
+  Sports & Athletics: 2.5
+  Arts & Entertainment: 1.8
+  Campus Life: 1.5
+  Open Houses & Receptions: 1.2
+  General Interest: 1.0
+  Speakers, Forums, Conferences, Training & Workshops: 0.8
+  International Students: 0.6
+  Academic Calendar: 0.1
+audience_weights:
+  Students: 1.5
+  Visitors: 1.3
+  Residents: 1.2
+  Youth (K-12): 1.1
+  Faculty: 0.7
+  Staff: 0.7
+  Researcher: 0.6
+scoring:
+  formula: log1p(capacity or rsvp_total) * category_weight * audience_weight
+  multi_value: maximum matching weight in each dimension
+  unknown_category_weight: 1.0
+  unknown_audience_weight: 1.0
+  missing_size: null; do not interpret unknown capacity as zero attendance
+  calibration: All weights are hand-set modeling priors, UNVERIFIED empirically; capacity is an upper bound, not attendance.
