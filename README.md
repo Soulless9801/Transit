@@ -23,6 +23,21 @@ Every number carries one of these labels:
 - `PREDICTED`: model output.
 - `SIMULATED`: based on modelled history or assumed effects, not observations.
 
+## Giving someone access
+
+The site isn't public. Each viewer needs a login to the `transit` Databricks workspace plus permission to use the app. A workspace admin runs the following, or does it in the UI under Settings → Identity and access → Users, then Compute → Apps → aggiepulse → Permissions:
+
+```sh
+# 1. Add them to the workspace (they get an email invite)
+databricks users create --user-name someone@example.com -p transit
+
+# 2. Let them open the app (update-permissions adds; set-permissions would replace everyone)
+databricks apps update-permissions aggiepulse -p transit \
+  --json '{"access_control_list":[{"user_name":"someone@example.com","permission_level":"CAN_USE"}]}'
+```
+
+Viewers don't need table permissions, because the app reads data as its own service principal. To remove access, delete the user, or rerun step 2 with the permission removed using `set-permissions`.
+
 ## Caveats
 
 - Collection started 2026-11-07, so real data is still thin. The models are trained mostly on simulated history calibrated to TAMU's NTD ridership. Treat forecasts as indicative until weekday data accumulates.
