@@ -269,3 +269,15 @@ aggiepulse/
   databricks.yml        Asset Bundle: jobs, pipeline, app, warehouse refs
 ```
 Deploy everything with **Databricks Asset Bundles** (`databricks bundle deploy`) so the whole system can be reproduced from the repo. That is worth calling out to judges.
+
+---
+
+## 12. Later: public copy of the site (deferred 2026-11-07)
+
+**Now:** the Databricks App requires a workspace login, so viewers are added by hand (see README → "Giving someone access").
+
+**Later:** host a public, read-only copy outside Databricks.
+- **Host:** the same FastAPI + React app (`aggiepulse/app/`) as a container on Cloud Run, Fly.io or Render. The backend already supports `AGGIEPULSE_BACKEND=databricks` with env-based auth.
+- **Auth to Databricks:** a dedicated service principal with an OAuth secret (`DATABRICKS_HOST/CLIENT_ID/CLIENT_SECRET` stored as host secrets). Grants: CAN_USE on warehouse `3c5b1dbf21774cde`; SELECT on only the tables the app reads (`silver.vehicle_latest`, `silver.events`, `silver.service_alerts`, `gold.predictions_latest`, `gold.route_dir_15m`); READ VOLUME on `transit.raw.live`. No write access.
+- **Cost control:** public traffic keeps the serverless warehouse awake. Raise the server cache to about 60 s for non-vehicle data and add per-IP rate limiting. Alternatively, publish a JSON snapshot every 1–5 min to a CDN or object storage and serve the site fully statically, so the warehouse never sees public traffic. That is the cheaper option and is preferred.
+- **Before going public:** keep the provenance labels and caveats visible; add attribution (TAMU Transportation Services/TripSpark, Open-Meteo CC BY 4.0, NWS, NTD); tell TAMU (`transit@tamu.edu`) first, since the site republishes TripSpark data; check that no personal data is exposed (vehicle-level only).
