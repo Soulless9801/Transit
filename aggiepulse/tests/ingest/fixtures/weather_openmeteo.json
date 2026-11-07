@@ -1,0 +1,60 @@
+{
+  "ingest_ts": "2026-11-07T19:28:00.444133+00:00",
+  "query_url": "https://api.open-meteo.com/v1/forecast",
+  "query_params": {
+    "latitude": 30.61,
+    "longitude": -96.34,
+    "hourly": "temperature_2m,apparent_temperature,precipitation,rain,wind_speed_10m,weather_code",
+    "timezone": "UTC",
+    "forecast_days": 16
+  },
+  "kind": "forecast",
+  "payload": {
+    "latitude": 30.610382,
+    "longitude": -96.325676,
+    "generationtime_ms": 0.8535385131835938,
+    "utc_offset_seconds": 0,
+    "timezone": "GMT",
+    "timezone_abbreviation": "GMT",
+    "elevation": 110.0,
+    "hourly_units": {
+      "time": "iso8601",
+      "temperature_2m": "\u00b0C",
+      "apparent_temperature": "\u00b0C",
+      "precipitation": "mm",
+      "rain": "mm",
+      "wind_speed_10m": "km/h",
+      "weather_code": "wmo code"
+    },
+    "hourly": {
+      "time": [
+        "2026-11-07T00:00",
+        "2026-11-07T01:00"
+      ],
+      "temperature_2m": [
+        21.4,
+        19.6
+      ],
+      "apparent_temperature": [
+        21.7,
+        20.2
+      ],
+      "precipitation": [
+        0.0,
+        0.0
+      ],
+      "rain": [
+        0.0,
+        0.0
+      ],
+      "wind_speed_10m": [
+        4.7,
+        3.4
+      ],
+      "weather_code": [
+        0,
+        1
+      ]
+    }
+  }
+}

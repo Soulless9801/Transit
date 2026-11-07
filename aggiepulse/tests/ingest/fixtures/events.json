@@ -1,0 +1,30 @@
+{
+  "ingest_ts": "2026-11-07T19:27:40.342847+00:00",
+  "query_start": "2026-08-08",
+  "query_end": "2026-08-14",
+  "query_url": "https://calendar.tamu.edu/live/json/events/start_date/2026-08-08/end_date/2026-08-14/",
+  "cap_reached": false,
+  "payload": {
+    "id": 382669,
+    "group_title": "Department of Sociology",
+    "title": "ASA Annual Meeting - 2026",
+    "date_utc": "2026-08-08 05:00:00",
+    "date2_utc": null,
+    "is_all_day": 1,
+    "is_canceled": null,
+    "location_title": null,
+    "location_latitude": null,
+    "location_longitude": null,
+    "rsvp_total": null,
+    "event_types": [
+      "Speakers, Forums, Conferences, Training &amp; Workshops"
+    ],
+    "event_types_audience": [
+      "Faculty",
+      "Researcher",
+      "Students"
+    ],
+    "event_types_campus": null,
+    "tags": null
+  }
+}
