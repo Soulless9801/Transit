@@ -1,0 +1,32 @@
+# Databricks Asset Bundle for AggiePulse.
+# Each workstream owns its own file under resources/ (included below), so edits don't collide.
+# Deploy:  databricks bundle deploy -p transit   (from this directory)
+bundle:
+  name: aggiepulse
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog holding every AggiePulse schema
+    default: transit
+  landing_root:
+    description: Root that aggiepulse.common.paths.data_root() resolves to on Databricks
+    default: /Volumes/transit/raw
+  warehouse_id:
+    description: Serverless SQL warehouse (Serverless Starter Warehouse)
+    default: 3c5b1dbf21774cde
+
+artifacts:
+  aggiepulse_whl:
+    type: whl
+    build: uv build --wheel
+    path: .
+
+targets:
+  transit:
+    default: true
+    workspace:
+      profile: transit
+      host: https://dbc-595c228e-76f6.cloud.databricks.com
