@@ -3,6 +3,10 @@ import {createRoot} from 'react-dom/client';
 import * as maplibregl from 'maplibre-gl';
 import {Map as GLMap, Marker, Popup} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+// MapLibre v6 resolves its worker relative to its own module URL, which Vite doesn't
+// see, so the file is never emitted. Import it as an asset and point MapLibre at it.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import './style.css';
 
 

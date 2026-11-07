@@ -1,4 +1,5 @@
 import json
+import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -34,6 +35,9 @@ def stops():
 
 
 from .datasets import Datasets, plan
+
+# MapLibre's worker is an .mjs module worker; older Pythons don't map .mjs to a JS MIME type.
+mimetypes.add_type("text/javascript", ".mjs")
 
 datasets = Datasets()
 
