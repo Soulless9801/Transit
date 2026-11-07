@@ -4,13 +4,13 @@ TripSpark collector
 From the `aggiepulse` package directory:
 
 ```sh
-uv run python -m aggiepulse.collector.poll_tripspark --interval 30 --base-interval 3600
+uv run python -m aggiepulse.collector.poll_tripspark --interval 30 --base-interval 3600 --rotate-minutes 5
 ```
 
 For a laptop backup that prevents idle sleep on macOS and restarts after exits:
 
 ```sh
-nohup ./scripts/collector/run_backup_collector.sh --interval 30 --base-interval 3600 >/dev/null 2>&1 &
+nohup ./scripts/collector/run_backup_collector.sh --interval 30 --base-interval 3600 --rotate-minutes 5 >/dev/null 2>&1 &
 ```
 
 Stop the runner with SIGTERM to its PID; it forwards SIGTERM to the collector.
@@ -18,7 +18,12 @@ Stop the runner with SIGTERM to its PID; it forwards SIGTERM to the collector.
 
 `AGGIEPULSE_DATA_ROOT` overrides the shared helper's default storage root. Set it
 explicitly for a UC Volume or another local directory. Vehicle files land at
-`landing/tripspark_vehicles/date=YYYY-MM-DD/vehicles_<UTC-hour>_<hostname>.jsonl.gz`.
+`landing/tripspark_vehicles/date=YYYY-MM-DD/vehicles_<UTC-window>_<hostname>.jsonl.gz`.
+`--rotate-minutes` defaults to 60 (the original `YYYYMMDDTHH` filenames).
+Use 5 for `YYYYMMDDTHHMM` filenames, aligned to UTC five-minute boundaries.
+Supported rotation lengths are positive integer divisors of 60. Files from
+completed windows are immutable; configure the sync runner with the same
+`--rotate-minutes` value. Existing hourly files retain their one-hour closure rule.
 Each poll is a separate, closed gzip member followed by flush/fsync. Standard
 Python gzip and Spark can read the concatenated members. Base fetch envelopes
 are separate files under `landing/tripspark_base/date=YYYY-MM-DD/`. Failed

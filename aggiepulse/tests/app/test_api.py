@@ -158,3 +158,53 @@ def test_planner_scoring():
         < 0.2
         for r in rows
     )
+
+
+def test_vehicle_source_selection():
+    from datetime import UTC, datetime, timedelta
+    from unittest.mock import MagicMock
+
+    from app.backend.datasets import select_vehicles
+
+    now = datetime.now(UTC)
+    fresh = now.isoformat()
+    stale = (now - timedelta(minutes=4)).isoformat()
+    backend = MagicMock()
+    backend.hot_snapshot.return_value = {'snapshot_ts': fresh, 'poll_ingest_ts': fresh, 'vehicles': [{'vehicle_id': 'hot'}]}
+    rows, source, _, meta = select_vehicles(backend, now)
+    assert rows[0]['vehicle_id'] == 'hot' and source == 'hot-path'
+    assert meta['poll_ingest_ts'] == fresh
+    backend.query.assert_not_called()
+    backend.hot_snapshot.return_value['poll_ingest_ts'] = stale
+    backend.query.return_value = [{'vehicle_id': 'silver', 'ts_gps': fresh}]
+    rows, source, reason, _ = select_vehicles(backend, now)
+    assert source == 'databricks' and rows[0]['vehicle_id'] == 'silver' and 'stale' in reason
+    backend.query.return_value = []
+    rows, source, reason, _ = select_vehicles(backend, now)
+    assert source == 'local-snapshot' and rows and 'empty or stale' in reason
+    backend.hot_snapshot.side_effect = RuntimeError('network')
+    backend.query.side_effect = RuntimeError('SQL offline')
+    assert select_vehicles(backend, now)[1] == 'local-snapshot'
+    backend.hot_snapshot.side_effect = None
+    backend.hot_snapshot.return_value = {'snapshot_ts': fresh, 'poll_ingest_ts': fresh, 'vehicles': []}
+    assert select_vehicles(backend, now)[:2] == ([], 'hot-path')
+
+
+def test_cached_vehicle_metadata_age_advances(monkeypatch):
+    from datetime import UTC, datetime, timedelta
+    from unittest.mock import MagicMock
+
+    from app.backend import datasets as module
+
+    now = datetime.now(UTC)
+    stamp = (now - timedelta(seconds=25)).isoformat()
+    backend = MagicMock()
+    backend.hot_snapshot.return_value = {'snapshot_ts': stamp, 'poll_ingest_ts': stamp, 'vehicles': [{'vehicle_id': 'hot', 'ts_gps': stamp}]}
+    monkeypatch.setenv('AGGIEPULSE_BACKEND', 'databricks')
+    monkeypatch.setattr(module, 'DatabricksBackend', lambda: backend)
+    data = module.Datasets()
+    result = data.get('vehicles')
+    assert result['source'] == 'hot-path' and result['age_s'] >= 25
+    monkeypatch.setattr(module, 'refresh_vehicle_ages', lambda result: {**result, 'age_s': 30})
+    assert data.get('vehicles')['age_s'] == 30
+    backend.hot_snapshot.assert_called_once()

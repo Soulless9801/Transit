@@ -113,3 +113,25 @@ def test_remote_conflict_does_not_get_overwritten(tmp_path, monkeypatch):
     monkeypatch.setattr('aggiepulse.platform.sync.subprocess.run', run)
     with pytest.raises(RuntimeError, match='Immutable Volume conflict'):
         CliVolume().copy_verified(snapshot, '/Volumes/transit/raw/landing/file', fingerprint(snapshot))
+
+@pytest.mark.parametrize(('stamp', 'expected'), [('20261107T2020', True), ('20261107T2025', True), ('20261107T2030', False), ('20261107T2035', False), ('20261107T20', False), ('20261107T19', True), ('20261307T1900', False)])
+def test_rotation_window_closure(tmp_path, stamp, expected):
+    relative = Path(f'tripspark_vehicles/date=2026-11-07/vehicles_{stamp}_host.jsonl.gz')
+    path = old_file(tmp_path, relative)
+    assert eligible(path, relative, NOW, rotate_minutes=5) is expected
+
+
+def test_rotation_keeps_guard_and_hourly_manifest(tmp_path):
+    root = tmp_path / 'landing'
+    hourly = 'tripspark_vehicles/date=2026-11-07/vehicles_20261107T19_host.jsonl.gz'
+    old_file(root, hourly)
+    manifest = tmp_path / 'manifest.json'
+    backend = Backend()
+    args = (root, '/Volumes/transit/raw/landing', manifest)
+    assert sync_once(*args, now=NOW, backend=backend, rotate_minutes=60)['uploaded'] == 1
+    assert sync_once(*args, now=NOW, backend=backend, rotate_minutes=5)['unchanged'] == 1
+    relative = Path('tripspark_vehicles/date=2026-11-07/vehicles_20261107T2025_host.jsonl.gz')
+    path = old_file(root, relative)
+    os.utime(path, (NOW.timestamp() - 119,) * 2)
+    assert not eligible(path, relative, NOW, rotate_minutes=5)
+    assert len(backend.uploads) == 1

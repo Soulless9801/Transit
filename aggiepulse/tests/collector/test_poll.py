@@ -140,3 +140,35 @@ def test_stop_during_wait_flushes_and_closes(tmp_path, monkeypatch, base_payload
     client.close.assert_called_once()
     with gzip.open(state["last_landing_file"], "rt") as stream:
         assert json.load(stream)["payload"] == []
+
+@pytest.mark.parametrize('minute,stamp', [(0, '20261107T2000'), (4, '20261107T2000'), (5, '20261107T2005'), (59, '20261107T2055')])
+def test_five_minute_filenames_and_core_reader(minute, stamp):
+    import ast
+    import fnmatch
+    import re
+    from pathlib import Path
+
+    when = datetime(2026, 11, 7, 20, minute, 59, tzinfo=UTC)
+    path = poll.vehicles_path(when, 'laptop', 5)
+    assert path.name == f'vehicles_{stamp}_laptop.jsonl.gz'
+    # Exercise the actual Auto Loader glob and source-host regex without Spark.
+    source = (Path(__file__).resolve().parents[2] / 'pipelines/core/core.py').read_text()
+    tree = ast.parse(source)
+    glob = next(n.args[1].value for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == 'option' and n.args[0].value == 'pathGlobFilter')
+    pattern = next(n.args[1].value for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == 'regexp_extract' and isinstance(n.args[0], ast.Constant) and n.args[0].value == '_source_file')
+    assert fnmatch.fnmatch(path.name, glob)
+    assert re.search(pattern, '/' + path.name)[1] == 'laptop'
+    hourly = poll.vehicles_path(when, 'laptop')
+    assert hourly.name == 'vehicles_20261107T20_laptop.jsonl.gz'
+    assert re.search(pattern, '/' + hourly.name)[1] == 'laptop'
+
+
+def test_poll_uses_configured_rotation(tmp_path, monkeypatch, base_payload):
+    monkeypatch.setenv('AGGIEPULSE_DATA_ROOT', str(tmp_path))
+    monkeypatch.setattr(poll, 'utc_now', lambda: datetime(2026, 11, 7, 20, 7, tzinfo=UTC))
+    client = MagicMock()
+    client.last_http_status = 200
+    client.get_base_data.return_value = base_payload
+    client.get_vehicles.return_value = []
+    state = poll.run(max_polls=1, client=client, rotate_minutes=5)
+    assert 'vehicles_20261107T2005_' in state['last_landing_file']

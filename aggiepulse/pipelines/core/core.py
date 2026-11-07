@@ -287,7 +287,7 @@ def ping_candidates():
         F.col('v.passengersOnboard').alias('onboard'),
         F.col('v.passengerCapacity').alias('capacity'),
         F.col('v.isExtraTrip').alias('is_extra_trip'),
-        F.regexp_extract('_source_file', r'/vehicles_\d{8}T\d{2}_([^/]+)\.jsonl(?:\.gz)?$', 1)
+        F.regexp_extract('_source_file', r'/vehicles_\d{8}T\d{2}(?:\d{2})?_([^/]+)\.jsonl(?:\.gz)?$', 1)
         .alias('source_host'), '_source_file',
     )
     metadata = read('silver', 'tripspark_routes').select(
