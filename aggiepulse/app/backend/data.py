@@ -177,7 +177,7 @@ class DatabricksBackend:
         "vehicles": "silver.vehicle_latest",
         "events": "silver.events",
         "alerts": "silver.service_alerts",
-        "predictions": "gold.predictions",
+        "predictions": "gold.predictions_latest",
         "history": "gold.route_dir_15m",
     }
 
@@ -205,7 +205,6 @@ class DatabricksBackend:
             + (
                 {
                     "events": "WHERE start_ts BETWEEN current_timestamp() AND current_timestamp() + INTERVAL 7 DAYS AND NOT coalesce(is_canceled, false) ORDER BY significance DESC",
-                    "predictions": "WHERE scoring_ts = (SELECT max(scoring_ts) FROM transit.gold.predictions)",
                     "history": "WHERE data_origin = 'observed' ORDER BY window_start DESC",
                 }.get(dataset, "")
             )
@@ -224,14 +223,9 @@ class DatabricksBackend:
                 if value is not None:
                     if column.type_name.value in ("ARRAY", "STRUCT", "MAP"):
                         value = json.loads(value)
-                    elif column.type_name.value in (
-                        "DOUBLE",
-                        "FLOAT",
-                        "DECIMAL",
-                        "LONG",
-                        "INT",
-                        "SHORT",
-                    ):
+                    elif column.type_name.value in ("LONG", "INT", "SHORT", "BYTE"):
+                        value = int(value)
+                    elif column.type_name.value in ("DOUBLE", "FLOAT", "DECIMAL"):
                         value = float(value)
                     elif column.type_name.value == "BOOLEAN":
                         value = value.lower() == "true"
