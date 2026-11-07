@@ -1,0 +1,27 @@
+{
+  "pipeline_id": "3db97dca-16f4-4d27-88eb-3563ac1749ee",
+  "pipeline_url": "https://dbc-595c228e-76f6.cloud.databricks.com/pipelines/3db97dca-16f4-4d27-88eb-3563ac1749ee?w=7474654155800707",
+  "update_id": "30f9f428-3727-452d-bca2-c7fd12ed2ecf",
+  "update_state": "COMPLETED",
+  "row_counts": {
+    "stop_visits": 96,
+    "schedule_only_windows": 144286,
+    "aggregated_pings": 483,
+    "route_direction_map": 32,
+    "headways": 96,
+    "route_dir_15m": 144311,
+    "stop_15m": 112
+  },
+  "count_statement_id": "01f1dae8-4c22-1ab8-8cbb-c64da89a60c0",
+  "verified_at_utc": "2026-11-07T20:18:15.184215+00:00",
+  "job_id": "163479061178446",
+  "job_url": "https://dbc-595c228e-76f6.cloud.databricks.com/jobs/163479061178446?w=7474654155800707",
+  "schedule": "0 0/15 * * * ? (UTC), core success then ops",
+  "schedule_status": "UNPAUSED (verified via jobs API)",
+  "checks": {
+    "pytest_transform": "17 passed",
+    "ruff": "passed",
+    "local_spark": "passed, pandas stop visits match"
+  },
+  "initial_attempt_issue": "Redundant pip environment version ranges failed under runtime constraints; removed and used bundled scientific packages."
+}

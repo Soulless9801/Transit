@@ -1,0 +1,35 @@
+resources:
+  pipelines:
+    aggiepulse_ops:
+      name: aggiepulse_ops
+      catalog: transit
+      schema: silver
+      serverless: true
+      continuous: false
+      channel: CURRENT
+      edition: ADVANCED
+      libraries:
+        - file:
+            path: ../pipelines/ops/ops.py
+      configuration:
+        aggiepulse.catalog: transit
+        aggiepulse.source_path: ${workspace.file_path}/src
+        spark.sql.session.timeZone: UTC
+  jobs:
+    aggiepulse_ops_refresh:
+      name: aggiepulse_ops_refresh
+      max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: '0 0/15 * * * ?'
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: refresh_core
+          run_job_task:
+            job_id: ${resources.jobs.aggiepulse_core_refresh.id}
+        - task_key: refresh_ops
+          depends_on:
+            - task_key: refresh_core
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.aggiepulse_ops.id}
+            full_refresh: false
