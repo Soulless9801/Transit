@@ -1,0 +1,14 @@
+sync:
+  include:
+    - ../app/frontend/dist/**
+resources:
+  apps:
+    aggiepulse:
+      name: aggiepulse
+      description: TAMU bus crowding forecasts
+      source_code_path: ../app
+      resources:
+        - name: warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
