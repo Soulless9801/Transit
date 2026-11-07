@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-11-07T19:57:13Z",
+  "run_id": 1026178651843682,
+  "run_url": "https://dbc-595c228e-76f6.cloud.databricks.com/?o=7474654155800707#job/272110232350433/run/1026178651843682",
+  "results": {
+    "https://aggiespirit.ts.tamu.edu/RouteMap": {"ok": false, "error": "[Errno -3] Temporary failure in name resolution"},
+    "https://transport.tamu.edu/webFS/gtfs/google_transit.zip": {"method": "HEAD", "ok": false, "error": "[Errno -3] Temporary failure in name resolution"},
+    "https://calendar.tamu.edu/live/json/events/": {"ok": false, "error": "[Errno -3] Temporary failure in name resolution"},
+    "https://archive-api.open-meteo.com/v1/archive": {"ok": true, "status": 200},
+    "https://api.open-meteo.com/v1/forecast": {"ok": true, "status": 200},
+    "https://api.weather.gov/stations/KCLL/observations/latest": {"ok": true, "status": 200},
+    "https://data.transportation.gov/resource/8bui-9xvu.json": {"ok": false, "error": "[Errno -3] Temporary failure in name resolution"}
+  }
+}
