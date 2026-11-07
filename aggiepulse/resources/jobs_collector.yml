@@ -1,0 +1,5 @@
+# No serverless collector resource: the 2026-11-07 serverless egress probe
+# failed DNS resolution for aggiespirit.ts.tamu.edu/RouteMap.
+# Keep the existing laptop collector at one GetVehicles call per 30 seconds;
+# scripts/platform/run_sync_loop.sh uploads only completed UTC hours.
+# No Databricks TripSpark traffic, continuous compute, or collector quota use.

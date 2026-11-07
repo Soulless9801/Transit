@@ -1,0 +1,31 @@
+# Full daily `python -m aggiepulse.ingest all` runs on the laptop, then syncs.
+# Serverless probe 2026-11-07: TAMU GTFS/events and NTD fail DNS resolution.
+# Do not schedule a knowingly failing daily all-sources serverless task.
+resources:
+  jobs:
+    ingest_weather_hourly:
+      name: aggiepulse-ingest-weather-hourly
+      max_concurrent_runs: 1
+      timeout_seconds: 900
+      performance_target: STANDARD
+      schedule:
+        quartz_cron_expression: "0 10 * * * ?"
+        timezone_id: America/Chicago
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: weather
+          environment_key: ingest
+          spark_python_task:
+            python_file: ../scripts/platform/run_batch.py
+            parameters:
+              - hourly-weather
+              - --data-root
+              - ${var.landing_root}
+          max_retries: 0
+          timeout_seconds: 900
+      environments:
+        - environment_key: ingest
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
