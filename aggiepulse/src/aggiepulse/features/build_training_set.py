@@ -14,10 +14,12 @@ from aggiepulse.features.inputs import (
     calendar_features,
     measured_windows,
     route_stops,
+    schedule,
     utc,
 )
 
 HORIZONS = (15, 30, 60)
+SEASON_KEY = KEY[:2]+['day_type','slot']
 
 
 def static_features(gtfs, venues):
@@ -93,6 +95,87 @@ def weather_features(times, weather, allow_observed_proxy=True):
     return result
 
 
+RECENT_COLUMNS = ['avg_load_factor','service_ratio','headway_cv','bunching_rate','active_vehicles']
+
+
+def seasonal_profile_source(source, train_end, academic, periods):
+    """Expanding simulated-train-only slot means with the time each became available."""
+    season = source[source.data_origin.eq('simulated') & (source.window_start < train_end)
+                    & source.avg_load_factor.notna()].copy().reset_index(drop=True)
+    season_cal = calendar_features(season.window_start, academic, periods)
+    season['day_type'] = season_cal.day_type.to_numpy()
+    season['slot'] = (season_cal.minute_of_day//15).to_numpy()
+    season = season.sort_values('window_start')
+    group = season.groupby(SEASON_KEY)
+    season['seasonal_slot_mean'] = group.avg_load_factor.cumsum()/(group.cumcount()+1)
+    season['available_at'] = season.window_start+pd.Timedelta(minutes=15)
+    return season[SEASON_KEY+['available_at','seasonal_slot_mean']]
+
+
+def assemble_features(frame, lookup, season, academic, periods, event_exposure, weather,
+                      static=None, allow_observed_weather_proxy=True):
+    """Features as of each row's t0, shared by training and inference.
+
+    ``frame`` has route/direction/t0/state_origin; ``lookup`` holds completed
+    source windows (window_start, state_origin, loads, sched_trips). Only
+    windows ending <= t0 feed recent state; sched_trips at t0 is published.
+    """
+    join_key = KEY[:2]+['state_origin']
+    frame = frame.reset_index(drop=True)
+    cal = calendar_features(frame.t0, academic, periods)
+    frame = pd.concat([frame, cal.drop(columns=['date','notes','class_wave'])], axis=1)
+    angle = frame.minute_of_day*2*np.pi/1440
+    frame['minute_of_day_sin'], frame['minute_of_day_cos'] = np.sin(angle), np.cos(angle)
+    frame['slot'] = frame.minute_of_day//15
+    for lag, name in [(15,'t0'), (30,'lag15'), (45,'lag30'), (75,'lag60')]:
+        columns = RECENT_COLUMNS+(['p90_load_factor'] if lag == 15 else [])
+        shifted = lookup[join_key+['window_start']+columns].copy()
+        shifted['t0'] = shifted.window_start+pd.Timedelta(minutes=lag)
+        names = {'avg_load_factor':'load_'+name, 'p90_load_factor':'p90_load_t0'}
+        if lag == 15:
+            names.update({c:c for c in RECENT_COLUMNS[1:]})
+        else:
+            names.update({c:c+'_'+name for c in RECENT_COLUMNS[1:]})
+        shifted = shifted.drop(columns='window_start').rename(columns=names)
+        frame = frame.merge(shifted, on=join_key+['t0'], how='left', validate='many_to_one')
+    frame['delta_load_30m'] = frame.load_t0-frame.load_lag30
+    frame['service_shortfall'] = (1-frame.service_ratio).clip(lower=0)
+    frame['headway_cv_last30m'] = frame[['headway_cv','headway_cv_lag15']].mean(axis=1)
+    frame['bunching_last30m'] = frame[['bunching_rate','bunching_rate_lag15']].mean(axis=1)
+    # Exactly seven local calendar days, preserving slot across DST.
+    prior_local = frame.t0.dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)-pd.Timedelta(days=7)
+    prior = prior_local.dt.tz_localize(LOCAL_TZ, ambiguous=False, nonexistent='NaT').dt.tz_convert('UTC')
+    last_week = frame[join_key].copy()
+    last_week['window_start'] = prior
+    last_week = last_week.merge(lookup[join_key+['window_start','avg_load_factor']],
+                                on=join_key+['window_start'], how='left')
+    frame['load_same_slot_last_week'] = last_week.avg_load_factor.to_numpy()
+    # Expanding train-only statistics, available only AFTER each source interval ends.
+    if season.empty:
+        frame['seasonal_slot_mean'] = np.nan
+    else:
+        # Keys must share dtypes exactly (e.g. a Spark round trip yields a different string dtype).
+        season = season.astype({c: frame[c].dtype for c in SEASON_KEY})
+        season['available_at'] = pd.to_datetime(season.available_at, utc=True).astype(frame.t0.dtype)
+        frame = pd.merge_asof(frame.sort_values('t0'), season.sort_values('available_at'),
+                              left_on='t0', right_on='available_at', by=SEASON_KEY, direction='backward')
+        frame = frame.drop(columns='available_at')
+    frame = frame.merge(weather_features(frame.t0, weather, allow_observed_weather_proxy), on='t0', how='left')
+    if not event_exposure.empty:
+        ex = event_exposure.drop_duplicates(KEY).rename(columns={'window_start':'t0'})
+        frame = frame.merge(ex, on=KEY[:2]+['t0'], how='left', validate='many_to_one')
+    if static is not None:
+        frame = frame.merge(static, on=KEY[:2], how='left', validate='many_to_one')
+    # Current/future schedule is published information, unlike target load.
+    freq = lookup[join_key+['window_start','sched_trips']].rename(
+        columns={'window_start':'t0','sched_trips':'scheduled_trips_t0'})
+    frame = frame.merge(freq, on=join_key+['t0'], how='left')
+    frame['scheduled_frequency_per_hour'] = frame.scheduled_trips_t0*4
+    for hook in ['active_alert', 'closed_stop_count', 'upcoming_alert_60m']:
+        frame[hook] = np.nan
+    return frame
+
+
 def build_training_set(history, academic, periods, event_exposure, weather,
                        static=None, train_end=None, validation_end=None,
                        allow_observed_weather_proxy=True):
@@ -126,67 +209,10 @@ def build_training_set(history, academic, periods, event_exposure, weather,
     # Origins are isolated in recent state; observed windows never get synthetic lag state.
     join_key = KEY[:2]+['state_origin']
     frame = source[KEY+['data_origin']].rename(columns={'window_start':'t0','data_origin':'state_origin'})
-    frame = frame.reset_index(drop=True)
-    cal = calendar_features(frame.t0, academic, periods)
-    frame = pd.concat([frame, cal.drop(columns=['date','notes','class_wave'])], axis=1)
-    angle = frame.minute_of_day*2*np.pi/1440
-    frame['minute_of_day_sin'], frame['minute_of_day_cos'] = np.sin(angle), np.cos(angle)
-    frame['slot'] = frame.minute_of_day//15
     lookup = source.rename(columns={'data_origin':'state_origin'})
-    recent_columns = ['avg_load_factor','service_ratio','headway_cv','bunching_rate','active_vehicles']
-    for lag, name in [(15,'t0'), (30,'lag15'), (45,'lag30'), (75,'lag60')]:
-        shifted = lookup[join_key+['window_start']+recent_columns].copy()
-        shifted['t0'] = shifted.window_start+pd.Timedelta(minutes=lag)
-        names = {'avg_load_factor':'load_'+name}
-        if lag == 15:
-            names.update({c:c for c in recent_columns[1:]})
-        else:
-            names.update({c:c+'_'+name for c in recent_columns[1:]})
-        shifted = shifted.drop(columns='window_start').rename(columns=names)
-        frame = frame.merge(shifted, on=join_key+['t0'], how='left', validate='one_to_one')
-    frame['delta_load_30m'] = frame.load_t0-frame.load_lag30
-    frame['service_shortfall'] = (1-frame.service_ratio).clip(lower=0)
-    frame['headway_cv_last30m'] = frame[['headway_cv','headway_cv_lag15']].mean(axis=1)
-    frame['bunching_last30m'] = frame[['bunching_rate','bunching_rate_lag15']].mean(axis=1)
-    # Exactly seven local calendar days, preserving slot across DST.
-    prior_local = frame.t0.dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)-pd.Timedelta(days=7)
-    prior = prior_local.dt.tz_localize(LOCAL_TZ, ambiguous=False, nonexistent='NaT').dt.tz_convert('UTC')
-    last_week = frame[join_key].copy()
-    last_week['window_start'] = prior
-    last_week = last_week.merge(lookup[join_key+['window_start','avg_load_factor']],
-                                on=join_key+['window_start'], how='left')
-    frame['load_same_slot_last_week'] = last_week.avg_load_factor.to_numpy()
-    # Expanding train-only statistics, available only AFTER each source interval ends.
-    season = source[source.data_origin.eq('simulated') & (source.window_start < train_end)
-                    & source.avg_load_factor.notna()].copy().reset_index(drop=True)
-    season_cal = calendar_features(season.window_start, academic, periods)
-    season['day_type'] = season_cal.day_type.to_numpy()
-    season['slot'] = (season_cal.minute_of_day//15).to_numpy()
-    season_key = KEY[:2]+['day_type','slot']
-    season = season.sort_values('window_start')
-    group = season.groupby(season_key)
-    season['seasonal_slot_mean'] = group.avg_load_factor.cumsum()/(group.cumcount()+1)
-    season['available_at'] = season.window_start+pd.Timedelta(minutes=15)
-    if season.empty:
-        frame['seasonal_slot_mean'] = np.nan
-    else:
-        frame = pd.merge_asof(frame.sort_values('t0'),
-                              season[season_key+['available_at','seasonal_slot_mean']].sort_values('available_at'),
-                              left_on='t0', right_on='available_at', by=season_key, direction='backward')
-        frame = frame.drop(columns='available_at')
-    frame = frame.merge(weather_features(frame.t0, weather, allow_observed_weather_proxy), on='t0', how='left')
-    if not event_exposure.empty:
-        ex = event_exposure.drop_duplicates(KEY).rename(columns={'window_start':'t0'})
-        frame = frame.merge(ex, on=KEY[:2]+['t0'], how='left', validate='many_to_one')
-    if static is not None:
-        frame = frame.merge(static, on=KEY[:2], how='left', validate='many_to_one')
-    # Current/future schedule is published information, unlike target load.
-    freq = lookup[join_key+['window_start','sched_trips']].rename(
-        columns={'window_start':'t0','sched_trips':'scheduled_trips_t0'})
-    frame = frame.merge(freq, on=join_key+['t0'], how='left')
-    frame['scheduled_frequency_per_hour'] = frame.scheduled_trips_t0*4
-    for hook in ['active_alert', 'closed_stop_count', 'upcoming_alert_60m']:
-        frame[hook] = np.nan
+    season = seasonal_profile_source(source, train_end, academic, periods)
+    frame = assemble_features(frame, lookup, season, academic, periods, event_exposure, weather,
+                              static, allow_observed_weather_proxy)
     frame['split'] = np.select([frame.state_origin.eq('observed'), frame.t0 < train_end,
                                  frame.t0 < validation_end], ['observed_holdout','train','validation'], 'test')
     for horizon in HORIZONS:
@@ -214,6 +240,60 @@ def build_training_set(history, academic, periods, event_exposure, weather,
                        seasonal_semantics='expanding simulated-training-only mean; frozen after train_end',
                        observed_weather_proxy_allowed=allow_observed_weather_proxy)
     return frame
+
+
+def build_inference_features(observed, gtfs, season, academic, periods, event_exposure_fn,
+                             weather, static, t0, scoring_ts=None, horizons=HORIZONS):
+    """Inference mode: one row per route-direction scheduled in a target window.
+
+    Recent state comes only from completed observed APC windows ending <= t0;
+    sched_trips at t0 comes from the published GTFS schedule. ``season`` is the
+    frozen train-only profile (``seasonal_profile_source``). ``event_exposure_fn``
+    maps a route/direction/window_start grid to event features. Feature
+    staleness = minutes from scoring_ts back to the end of the newest observed
+    window (<= t0, 24 h lookback) for that route-direction; null if none.
+    """
+    t0 = utc(t0)
+    scoring_ts = utc(scoring_ts) if scoring_ts is not None else t0
+    lookback = t0-pd.Timedelta(hours=24)
+    sched = schedule(gtfs, lookback, t0+pd.Timedelta(minutes=max(horizons)+15))
+    targets = {t0+pd.Timedelta(minutes=h) for h in horizons}
+    served = sched[sched.window_start.isin(targets) & sched.sched_trips.gt(0)][KEY[:2]].drop_duplicates()
+    if served.empty:
+        return pd.DataFrame()
+    obs = measured_windows(observed) if observed is not None and not observed.empty else pd.DataFrame()
+    if not obs.empty:
+        obs = obs[obs.data_origin.eq('observed')].copy()
+        obs['window_start'] = pd.to_datetime(obs.window_start, utc=True)
+        obs['route_short_name'] = obs.route_short_name.astype('string')
+        obs['direction_id'] = obs.direction_id.astype(int)
+        obs = obs[(obs.window_start >= lookback-pd.Timedelta(days=8))
+                  & (obs.window_start+pd.Timedelta(minutes=15) <= t0)]
+    sched['route_short_name'] = sched.route_short_name.astype('string')
+    columns = KEY+RECENT_COLUMNS+['p90_load_factor','sched_trips']
+    if obs.empty:
+        lookup = sched.copy()
+    else:
+        known = obs.set_index(KEY).index
+        lookup = pd.concat([obs, sched[~sched.set_index(KEY).index.isin(known)]], ignore_index=True)
+    lookup = lookup.reindex(columns=columns)
+    lookup['state_origin'] = 'observed'
+    frame = served.assign(t0=t0, state_origin='observed')
+    frame['route_short_name'] = frame.route_short_name.astype('string')
+    frame['direction_id'] = frame.direction_id.astype(int)
+    grid = frame[KEY[:2]].assign(window_start=t0)
+    frame = assemble_features(frame, lookup, season, academic, periods, event_exposure_fn(grid),
+                              weather, static)
+    if obs.empty:
+        frame['feature_staleness_min'] = np.nan
+    else:
+        last = (obs[obs.window_start >= lookback].groupby(KEY[:2]).window_start.max()
+                + pd.Timedelta(minutes=15)).rename('last_window_end').reset_index()
+        frame = frame.merge(last, on=KEY[:2], how='left')
+        frame['feature_staleness_min'] = (scoring_ts-frame.pop('last_window_end')).dt.total_seconds()/60
+    frame = frame.drop(columns='state_origin')
+    frame.attrs.update(t0=t0.isoformat(), scoring_ts=scoring_ts.isoformat())
+    return frame.sort_values(KEY[:2]).reset_index(drop=True)
 
 
 def main():

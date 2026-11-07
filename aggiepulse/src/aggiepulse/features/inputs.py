@@ -122,8 +122,12 @@ def calendar_features(times, academic, periods):
             to_start >= 0, to_start, np.inf).min(axis=1)
         result.loc[indices, 'minutes_since_last_class_end'] = np.where(
             since_end >= 0, since_end, np.inf).min(axis=1)
-        wave = (np.exp(-0.5*((to_start-15)/10)**2).mean(axis=1)
-                + np.exp(-0.5*((since_end-5)/10)**2).mean(axis=1)) * 2.0
+        # Sum kernels over a region's blocks, then average across campus regions.
+        # (A mean over every block diluted each class change by ~1/16.)
+        regions = (blocks.campus_region.fillna('all').nunique()
+                   if 'campus_region' in blocks else 1)
+        wave = (np.exp(-0.5*((to_start-15)/10)**2).sum(axis=1)
+                + np.exp(-0.5*((since_end-5)/10)**2).sum(axis=1)) / max(regions, 1)
         result.loc[indices, 'class_wave'] = wave
     return result.replace([np.inf, -np.inf], np.nan)
 
