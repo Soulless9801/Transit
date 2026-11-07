@@ -23,7 +23,12 @@ establishes a causal event effect or validates APC accuracy.
   unmatched directions are excluded. Live route RD has no GTFS equivalent.
   Only complete intervals are used. Local GPS timestamps use the collector's
   Chicago/DST handling. No live HTTP calls are made by Phase 5.
-- Silver Delta tables are preferred when compatible/nonempty. The same parsers
+- Silver Delta tables are preferred when compatible/nonempty, **except
+  `silver.events`** (Phase 6): it gives sizes/coordinates to events this policy
+  excludes or leaves unsized, which on 2026-11-07 put median route event exposure
+  at 14.8 (0 under the policy) and let the event prior dominate simulated demand
+  and the NTD scale. Events always come from raw LiveWhale envelopes through
+  `prepare_events`. The same parsers
   provide raw-Volume fallback. Seeds accept direct filenames or content-hash CSV
   files under their stem directories. Raw files are never modified.
 
@@ -54,12 +59,20 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
   reading day 0.55; finals 0.65. Priority is holiday, break, reading, finals,
   weekend, class. Thanksgiving follows explicit seed flags, not a date guess.
 - Class waves occur on `is_class_day=1` only, using both East and West seed
-  blocks with equal weights. For blocks matching M/T/W/R/F, wave is
-  `2*(mean G(minutes_to_start;15,10) + mean G(minutes_since_end;5,10))`;
-  load contribution is `0.65*wave`. Starts peak 15 minutes before and ends
+  blocks. For blocks matching M/T/W/R/F, wave is
+  `(sum G(minutes_to_start;15,10) + sum G(minutes_since_end;5,10)) / n_regions`
+  (sum over that day's blocks, divided by the number of campus regions in the
+  seed, 2). A changeover in one region therefore peaks near 1.0. **Phase 6
+  change (OUR ASSUMPTION):** this replaces `2*(mean + mean)` over all blocks,
+  which divided every class change by the ~16 blocks in a day and capped the
+  wave at ≈0.22 regardless of how many students change class at once. Load
+  contribution is `CLASS_WAVE_COEF (1.0) * wave * route class-change weight`
+  (see route groups below). Starts peak 15 minutes before and ends
   5 minutes after. Class timing features use the same blocks. The seed's
   December 1 redefined day uses Friday blocks. No waves on weekends, holidays,
   reading days or finals unless the academic seed explicitly marks classes.
+  Because East and West timetables are offset by ~30 min, MWF days have a class
+  change in one region roughly every 30-40 minutes; TR days show clearer gaps.
 - Observed shape fit uses route-pooled weekend/weekday × local-hour average APC
   load. Blend weight is `n/(n+500)` (500 prior pseudo-windows); observed/prior
   ratio is capped to [0.5,1.5]. Only represented day types/hours change; a
@@ -74,11 +87,33 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
   shorter than 7 km, otherwise `*0.03`. Simulator uses observed hourly weather;
   missing precipitation is assumed zero **only in the simulator**. Trip length
   is the median maximum GTFS stop-time shape distance per route.
-- Route/direction baseline and class contributions have a fixed mean-one
-  lognormal multiplier with log sigma .70. Independent window demand multipliers
-  are mean-one lognormal with log sigma .35, plus Normal(0,.025) additive noise;
-  the multiplicative residual is recorded in sim_noise. These heterogeneity
-  priors permit rare crowding windows without claiming observed class balance.
+- **Phase 6 change (OUR ASSUMPTION): route groups replace random route
+  weights.** Before, each route/direction drew a mean-one lognormal (log sigma
+  .70) multiplier from the shared RNG, so *which* routes were busy depended on
+  input row order (local and Databricks runs gave different busy routes) and
+  heavy demand was not tied to campus structure. Now the group comes from the
+  published GTFS names: `on_campus` = 01, 03, 04, 05, 06, 08 (TAMU's 0x
+  on-campus numbering); `off_campus` = other numbered routes; `night_weekend` =
+  combined codes (01-04, 03-05, 40-41, "Break, Nights, & Weekends"); `airport`
+  (07); `rellis` (47). Weights (baseline, class-change): on_campus (1.0, 1.0),
+  off_campus (1.0, .30), night_weekend (.80, .15), airport (.50, .05),
+  rellis (.80, .15). Rationale: the class-change wave is intra-campus movement,
+  so it is carried mostly by on-campus circulators; off-campus routes carry the
+  commute peaks already in the baseline curve. GTFS frequency (derived from data)
+  already concentrates departures on a few routes. No public per-route TAMU
+  ridership was found, so the group split is a prior, not a fit. Result on the
+  Sep 6–Nov 7 run: on-campus routes carry ≈47% of simulated boardings,
+  off-campus ≈51%, the rest ≈2%.
+- Each route/direction keeps a small mean-one lognormal residual (log sigma
+  .25) drawn from an RNG keyed by `crc32(route|direction)` and the seed, so it
+  is independent of input order.
+- **Phase 6 change (OUR ASSUMPTION):** a shared route/direction × local-day
+  mean-one lognormal demand level (log sigma .20) multiplies the window demand.
+  Real demand varies day to day (exams, weather beyond the rain term,
+  unscheduled events); purely independent window noise implies every weekday is
+  identical in expectation. Independent window demand multipliers remain
+  mean-one lognormal with log sigma .35, plus Normal(0,.025) additive noise;
+  the multiplicative residual is recorded in sim_noise.
   Raw service-window demand has a .005 floor; the physical [0,1.25] load cap
   is applied **after** monthly scaling, so pre-scaling clipping cannot suppress
   the entire crowding tail. p90 after calibration is
@@ -101,19 +136,62 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
   October/November currently use 2025 because 2026 records are unavailable.
   Duplicate source snapshots are deduplicated before selection.
 - **OUR ASSUMPTION:** implied gross boardings per departure are average onboard
-  load × capacity × **turnover 2.0**. Gross boardings cannot be identified from
-  onboard counts; the same monthly UPT can support many load/turnover pairs.
-- **OUR ASSUMPTION:** partial months target the fraction of observed quarter-hour
-  slots / (calendar days × 96) of monthly UPT. This flat calendar-time allocation
-  makes September 6–30 target 25/30 × 1,158,383 = **965,319.17**, with full-month
-  equivalent 1,158,383. It does not claim those were actual September 6–30 totals.
-  DST contributes actual UTC slots; November's extra hour is disclosed through
-  the logged coverage fraction rather than silently discarded.
+  load × capacity × **turnover 1.5** (Phase 6; was 2.0). Gross boardings cannot
+  be identified from onboard counts; the same monthly UPT can support many
+  load/turnover pairs. Cross-check (derived from data): GTFS-scheduled revenue
+  miles for October 2026 (58,121 departures × median trip length = 204,529 mi)
+  match NTD October 2025 VRM (201,251 mi) within 2%, so the service volume is
+  right and turnover is equivalent to an average passenger trip length
+  L ≈ 3.52 mi / turnover. Turnover 2.0 implies L ≈ 1.8 mi; 1.5 implies
+  L ≈ 2.3 mi. Both are plausible for a campus system whose ridership is
+  dominated by apartment-to-campus trips ridden most of a route's length; the
+  monthly NTD feed has no passenger-miles to pin it down. Sensitivity (same
+  seed, all Phase 6 changes): turnover 2.0 gives 0.29% crowded class-day
+  windows; 1.5 gives 1.15%.
+- **OUR ASSUMPTION:** partial months target the **day-type-weighted** share of
+  monthly UPT (Phase 6; was flat calendar time): each local date gets its
+  simulator day multiplier (class 1.0, weekend .40, …) and the target is
+  Σ covered-slot weights / Σ weights of all days in the month. Flat allocation
+  gave the first week of November 7/30 of a month that contains Thanksgiving
+  break, an artificial level drop in the test split. September 6–30 now targets
+  81.95% × 1,158,383 = **949,322.90**; November 1–7 25.1% × 764,116 = 191,792.78.
+  Full-month equivalents still equal NTD UPT exactly. `calibrate()` keeps the
+  flat rule when no day weights are passed. DST contributes actual UTC slots.
 - Scalar bisection matches that target after the [0,1.25] average-load cap.
   Infeasible targets or missing matching-month NTD raise errors instead of
   silently altering capacity or turnover. Run reports record coverage, source
   month, scale, target, achieved total and relative error. Exact agreement is a
   fitted constraint, not independent validation of simulated occupancy.
+
+## Phase 6 crowding diagnosis (why y_crowd was ≈0.04%)
+
+Before Phase 6, the Databricks training set had 34 crowded (max load ≥ .75)
+windows out of 80,995 served simulated windows (0.04%; 34 positive
+`y_crowd_h30` labels). Crowding needs average load ≥ .547 under the p90/max
+mapping, ≈5× the NTD-implied mean. Causes, in order of effect:
+
+1. The class wave was a mean over every block of the day, so a class change
+   added at most ≈0.22 × .65 ≈ .14 raw load, then ×≈.27 monthly scale ≈ .04.
+   It was nearly flat across the day, so there was no class-change peak.
+2. Route weights were random (sigma .70) and input-order dependent: the Databricks
+   run spread them evenly (max route mean load .18), while a local run with
+   identical inputs put most crowding on route 36 (0.6% overall). Busy routes
+   were RNG luck, not campus structure.
+3. Turnover 2.0 sets the NTD-implied mean load at ≈.11 per departure; with
+   turnover 1.5 it is ≈.15. The tail is very sensitive to this unidentified
+   factor (see sensitivity above).
+4. The p90/max mapping (`p90 = 1.18·avg + .035`, `max = p90 + .07`) was kept:
+   the 25 observed weekend windows available on 2026-11-07 show max/avg ≈ 1.20, consistent with it (with
+   tiny loads and one bus per window, so this is weak evidence).
+
+After Phase 6 (same seed, Sep 6–Nov 7 20:00 UTC, local inputs): 1.12% of all
+served windows, 1.15% of class-day windows, 3.0% of class-day on-campus windows,
+5.9% of on-campus windows at a class change (wave > .6), 0.29% of class-day
+off-campus windows and 0.34% of weekend windows (football/events) are crowded;
+907 positive `y_crowd_h30` labels. NTD agreement is exact by construction (relative error < 1e-15
+for every month). These rates are targets of our assumptions, chosen to be
+plausible for packed class-change buses; they are not measurements, and they
+were set before any model was trained (the model was not used to tune them).
 
 ## Event exposure
 
@@ -127,6 +205,8 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
   *max(audience_weight)`. The YAML weights are modeling priors. Capacity is an
   upper bound, not estimated actual attendance. Seeded athletics use category
   2.5 and audience 1.5; `significance>=10` defines a big event.
+- Note: every current route has a stop within 600 m of both Kyle Field and the
+  MSC, so `serves_kyle_field`/`serves_msc` are constant (uninformative) today.
 - **OUR ASSUMPTION:** H3 resolution 9 / disk radius 3 is a conservative candidate
   prefilter when h3 is installed (4.5.0 installed cleanly). Exact nearest-stop
   haversine distance ≤600 m is always required; distance weight is `exp(-d/300)`.
@@ -149,7 +229,7 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
 ## Training windows and leakage controls
 
 - A source row at `window_start=s` summarizes [s,s+15m). It is available only at
-  s+15m. **`load_t0` uses [t0-15m,t0)**; lag15/30/60 use source windows starting
+  s+15m. **`load_t0` and `p90_load_t0` use [t0-15m,t0)**; lag15/30/60 use source windows starting
   t0-30/45/75m. Delta30 compares load_t0 with lag30. Exact timestamp joins prevent
   gaps from becoming false 15-minute lags. Missing state remains null. The last
   30-minute headway/bunching mean uses the two completed windows, or one if only
@@ -195,6 +275,24 @@ All the following are **OUR ASSUMPTION**, unless explicitly marked derived.
   require explicit categorical encoding. Labels, split and origin are metadata,
   not predictive inputs. No model fitting or metric claims are made in Phase 5.
 
+## Inference mode (Phase 6 scoring)
+
+- `build_inference_features` reuses `assemble_features`, the exact code path of
+  the training builder: one row per route/direction with GTFS-scheduled service
+  in a target window, recent state only from completed **observed** APC windows
+  ending ≤ t0, `scheduled_trips_t0` from the published schedule, and the frozen
+  train-only seasonal profile (`gold.seasonal_profile`, written by the ml-data
+  job and embedded in each registered model). A test asserts the two builders
+  produce identical features for the same t0.
+- The scorer sets t0 to the end of the newest completed observed window (never
+  later than the current quarter-hour; falls back to the quarter-hour if APC is
+  more than 60 min behind). `feature_staleness_min` = minutes from scoring time
+  back to the end of that route/direction's newest observed window (24 h
+  lookback); null when there is none.
+- Live weather uses forecasts issued ≤ t0 when they exist, so the observed
+  proxy flags differ from training (where they are mostly 1). The proxy and
+  hindsight flags are therefore excluded from model inputs.
+
 ## Running and lineage
 
 Local development dependencies beyond the project wheel: `h3==4.5.0` and
@@ -216,7 +314,8 @@ executes Python files without setting __file__; deployed source takes precedence
 over any warm-environment wheel cache.
 
 The serverless job overwrites only `transit.gold.route_dir_15m_sim`,
-`transit.gold.event_exposure`, and `transit.gold.training_set` with Delta. It
+`transit.gold.event_exposure`, `transit.gold.training_set` and
+`transit.gold.seasonal_profile` with Delta. It
 records exact input/output Delta versions, calibration and samples in an MLflow
 run under `/Shared/aggiepulse`, with `delta_version.<table>` tags and a
 `ml_data_report.json` artifact. Local mode writes the same report and Parquet

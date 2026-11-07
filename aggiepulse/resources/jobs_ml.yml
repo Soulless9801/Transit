@@ -1,0 +1,88 @@
+# ML workstream (Phase 6): manual training pipeline and 15-minute batch scoring.
+# Both jobs use the same pinned serverless environment so pickled LightGBM/pandas
+# objects trained by one load identically in the other.
+resources:
+  jobs:
+    ml_train:
+      name: aggiepulse-ml-train
+      max_concurrent_runs: 1
+      timeout_seconds: 5400
+      tasks:
+        - task_key: refresh_ml_data
+          run_job_task:
+            job_id: ${resources.jobs.ml_data.id}
+        - task_key: train
+          depends_on:
+            - task_key: refresh_ml_data
+          environment_key: ml
+          max_retries: 0
+          spark_python_task:
+            python_file: ../src/aggiepulse/ml/job.py
+            parameters: [--step, train, --source-root, "${workspace.file_path}/src", --catalog, "${var.catalog}",
+                         --job-run-id, "{{job.run_id}}", --git-commit, "${bundle.git.commit}", --trials, "12"]
+        - task_key: evaluate
+          depends_on:
+            - task_key: train
+          environment_key: ml
+          max_retries: 0
+          spark_python_task:
+            python_file: ../src/aggiepulse/ml/job.py
+            parameters: [--step, evaluate, --source-root, "${workspace.file_path}/src", --catalog, "${var.catalog}",
+                         --job-run-id, "{{job.run_id}}"]
+        - task_key: register
+          depends_on:
+            - task_key: evaluate
+          environment_key: ml
+          max_retries: 0
+          spark_python_task:
+            python_file: ../src/aggiepulse/ml/job.py
+            parameters: [--step, register, --source-root, "${workspace.file_path}/src", --catalog, "${var.catalog}",
+                         --job-run-id, "{{job.run_id}}"]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+              - lightgbm==4.7.0
+              - mlflow==3.18.0
+              - optuna==5.0.0
+              - scikit-learn==1.9.1
+              - pandas==3.1.1
+              - numpy==2.5.4
+              - matplotlib==3.11.2
+              - h3==4.5.0
+              - PyYAML==6.0.3
+
+    ml_score:
+      name: aggiepulse-ml-score
+      max_concurrent_runs: 1
+      timeout_seconds: 840
+      # Offset 8 min after the 15-minute ops refresh (which takes ~6 min) so the newest window is in gold.
+      schedule:
+        quartz_cron_expression: "0 8/15 * * * ?"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: score
+          environment_key: ml
+          max_retries: 0
+          spark_python_task:
+            python_file: ../src/aggiepulse/ml/score.py
+            parameters: [--source-root, "${workspace.file_path}/src", --catalog, "${var.catalog}",
+                         --data-root, "${var.landing_root}", --seed-root, /Volumes/transit/raw/seeds]
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl
+              - lightgbm==4.7.0
+              - mlflow==3.18.0
+              - optuna==5.0.0
+              - scikit-learn==1.9.1
+              - pandas==3.1.1
+              - numpy==2.5.4
+              - matplotlib==3.11.2
+              - h3==4.5.0
+              - PyYAML==6.0.3
