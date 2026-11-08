@@ -1,0 +1,878 @@
+AggiePulse Databricks analytics handoff
+Generated UTC: 2026-11-08T00:22:45.437792+00:00
+
+Dashboard: https://dbc-595c228e-76f6.cloud.databricks.com/dashboardsv3/01f1db0925b81a47ad018d8fc898deaa/published?w=7474654155800707
+Dashboard ID: 01f1db0925b81a47ad018d8fc898deaa
+Lakeview CLI get matched local JSON exactly: True
+Published revision UTC: 2026-11-08T00:21:29.759Z
+Genie: https://dbc-595c228e-76f6.cloud.databricks.com/genie/rooms/01f1db093b021033aabbdb939c631a81?w=7474654155800707
+Genie space ID: 01f1db093b021033aabbdb939c631a81
+Both are managed by Asset Bundle resources, warehouse_id=${var.warehouse_id}.
+
+Validation: all 16 dashboard dataset queries and four trusted Genie SQL examples succeeded via SQL Statements API.
+Local verification: 8 analytics tests passed; ruff check passed; bundle validate passed.
+databricks bundle deploy -p transit succeeded. No deployment lock encountered. No commits made.
+Dashboard has five pages; Genie has 25 curated tables, 12 sample questions and four trusted queries.
+Source catalog_snapshot.json contains 56 public Bronze/Silver/Gold table names discovered at build time; internal materializations excluded.
+
+UC comments: 37 table comments and 223 column comments documented; 362 column comments blocked by pipeline-owned view ALTER restrictions.
+All blocked definitions are included in the Genie shared glossary with table mappings, including reference-only excluded tables.
+Genie query sources exclude Bronze, training_set, pipeline logs and diagnostic/audit-only tables.
+Live comment rerun: {"tables": 37, "table_comments_applied": 0, "columns": 585, "column_comments_applied": 0, "column_fallbacks": 362}
+
+Champion snapshot (regenerate assets after alias promotion): {"resolved_utc": "2026-11-08T00:21:05.513199+00:00", "models": [{"model_name": "transit.ml.crowding_h15", "champion_version": "1"}, {"model_name": "transit.ml.crowding_h30", "champion_version": "1"}, {"model_name": "transit.ml.crowding_h60", "champion_version": "1"}]}
+
+Persistent limitations / data availability:
+- ALTER TABLE ... ALTER COLUMN fails with EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE for 27 pipeline-managed views. Table-level COMMENT ON TABLE succeeds. No ownership or pipeline code was changed.
+- Live GPS readings were older than five minutes at validation, so active buses/load-now are empty/zero and the freshness counter exposes the lag. This work does not operate the collector.
+- No simulated actuals are matched in pred_vs_actual, so the separate simulated verification chart is empty. No simulated metrics were presented as observed performance.
+- event_exposure currently has no future windows. The widget shows available coverage bounds and a NULL future peak, rather than inventing upcoming exposure.
+- Observed 30-minute evaluation has only 24 matched examples: MAE 0.0647754 load-factor units, interval coverage 0.3333333. These rolling scored matches are not claimed as independent model-selection holdout evidence.
+- Champion versions are a timestamped build snapshot, not a continuously queried alias. Prediction rows preserve the actual scored version.
+- Calendar midnight/all-day markers are not game kickoff times; significance and attendance are priors, not measured turnout or causal demand.
+- Pipeline refreshes may overwrite pipeline-owned metadata; rerun apply_comments.py after refresh. Its final unchanged live rerun is recorded.
+
+Genie question -> generated SQL -> answer -> correctness:
+
+QUESTION: What is the model's 30-minute MAE on observed data?
+SQL:
+WITH `verified` AS (
+  SELECT *,
+         row_number() OVER (
+           PARTITION BY `t0`, `route_short_name`, `direction_id`, `horizon_min`, `actual_data_origin`
+           ORDER BY `scoring_ts` DESC
+         ) AS `rn`
+  FROM `transit`.`gold`.`pred_vs_actual`
+  WHERE `actual_p90_load` IS NOT NULL
+    AND `actual_data_origin` IN ('observed', 'simulated')
+), `latest` AS (
+  SELECT *
+  FROM `verified`
+  WHERE `rn` = 1
+)
+SELECT CASE WHEN grouping(`route_short_name`) = 1 THEN 'ALL ROUTES' ELSE `route_short_name` END AS `route_short_name`,
+       `model_name`,
+       `model_version`,
+       COUNT(*) AS `n`,
+       AVG(ABS(`pred_p50` - `actual_p90_load`)) AS `mae_load_factor`,
+       AVG(CAST(`actual_in_p10_p90` AS DOUBLE)) AS `interval_coverage`
+FROM `latest`
+WHERE `horizon_min` = 30
+  AND `actual_data_origin` = 'observed'
+GROUP BY GROUPING SETS ((`model_name`, `model_version`), (`route_short_name`, `model_name`, `model_version`))
+ORDER BY CASE WHEN `route_short_name` = 'ALL ROUTES' THEN 0 ELSE 1 END,
+         `route_short_name`
+RESULT ROWS: 14
+ANSWER:
+On **observed data**, the model’s **30-minute MAE** is **0.0648** load factor for **ALL ROUTES** using **model version 1**, based on **24** matched examples. Across the 14 returned rows, route-level MAE ranges from **0.0015** on **31** to **0.2206** on **15**, showing performance varies notably by route.
+CORRECT: True
+REVIEW: Correct overall observed-only MAE 0.06477539647407445, n=24, model transit.ml.crowding_h30 version 1; route breakdown and 33.3333% interval coverage are in SQL results. Latest scoring deduplication verified; result equals trusted SQL. No independent holdout claim.
+
+QUESTION: Which routes bunched most this weekend?
+SQL:
+WITH route_bunching AS (
+  SELECT
+    `route_short_name`,
+    COUNT(*) AS `n_valid_headways`,
+    AVG(CAST(`is_bunched` AS DOUBLE)) AS `bunching_rate`,
+    AVG(CAST(`is_gap` AS DOUBLE)) AS `gap_rate`
+  FROM `transit`.`silver`.`headways`
+  WHERE `data_origin` = 'observed'
+    AND `headway_ratio` IS NOT NULL
+    AND `route_short_name` IS NOT NULL
+    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 5)
+    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7)
+  GROUP BY `route_short_name`
+)
+SELECT
+  `route_short_name`,
+  `n_valid_headways`,
+  `bunching_rate`,
+  `gap_rate`,
+  RANK() OVER (ORDER BY `bunching_rate` DESC, `n_valid_headways` DESC) AS `bunching_rank`
+FROM route_bunching
+ORDER BY `bunching_rank`, `route_short_name`
+RESULT ROWS: 13
+ANSWER:
+No routes showed **any observed bunching this weekend** in the data returned: all **13 routes** had a **0.0 bunching rate**. Examples include:
+- **01-04** — **0.0** bunching rate across **91** valid headways
+- **40-41** — **0.0** across **90** valid headways
+- **47** — **0.0** across **74** valid headways
+- **03-05** — **0.0** across **69** valid headways
+- **27** — **0.0** across **54** valid headways
+Among these weekend routes, the largest sample sizes were on **01-04** and **40-41**, and even there the observed bunching rate remained **zero**.
+Would you prefer to see bunching rates for the last weekend or for a rolling 7-day period including the weekend instead?
+CORRECT: True
+REVIEW: Correct: all 13 routes have zero bunching among valid observed weekend headways; Chicago Saturday/Sunday boundaries and sample sizes match trusted SQL. Additional rank column only breaks zero-rate ties by sample count.
+
+QUESTION: Which events next week are near Kyle Field?
+SQL:
+SELECT `title`, `location_title`, `venue_key`, `is_all_day`, CASE WHEN `is_all_day` THEN concat(date_format(from_utc_timestamp(`start_ts`, 'America/Chicago'), 'yyyy-MM-dd'), ' (all day)') ELSE concat(date_format(from_utc_timestamp(`start_ts`, 'America/Chicago'), 'yyyy-MM-dd HH:mm'), ' America/Chicago') END AS `starts_local`, `significance`, `est_attendance`, 2 * 6371000 * asin(sqrt(pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) + cos(radians(30.6102)) * cos(radians(`lat`)) * pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2))) AS `distance_m` FROM `transit`.`silver`.`events` WHERE NOT `is_canceled` AND `lat` IS NOT NULL AND `lon` IS NOT NULL AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7) AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 14) AND 2 * 6371000 * asin(sqrt(pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) + cos(radians(30.6102)) * cos(radians(`lat`)) * pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2))) <= 600 ORDER BY `significance` DESC NULLS LAST, `start_ts`
+RESULT ROWS: 47
+ANSWER:
+Examples of events near **Kyle Field** next week include:
+- **Aggie Football - Black Out** — **Kyle Field**, **2026-11-14 (all day)**
+- **OPAS presents A Beautiful Noise: The Neil Diamond Musical** — **Rudder Auditorium**, **2026-11-10 19:30 America/Chicago**
+- **OPAS presents A Beautiful Noise: The Neil Diamond Musical** — **Rudder Auditorium**, **2026-11-11 19:30 America/Chicago**
+- **University Orchestra Ensembles in Concert** — **Rudder Auditorium**, **2026-11-15 17:00 America/Chicago**
+- **University Band Ensembles in Concert** — **Rudder Theatre**, **2026-11-15 14:00 America/Chicago**
+CORRECT: True
+REVIEW: Correct: all 47 returned events match trusted SQL for next local Monday-start week and <=600 m haversine radius. Summary prioritizes significance and correctly labels the November 14 Kyle Field entry all day, not a kickoff time.
+
+Table/column documentation inventory (all TIMESTAMP fields UTC):
+
+transit.gold.event_exposure
+TABLE COMMENT: DERIVED · GPS / SIMULATED prior: route/direction/15-minute event proximity and phase weights from calendar events and route stops (600 m radius); significance is assumed, not causal impact. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  window_start [UC DOCUMENTED]: Inclusive UTC 15-minute aggregation window start; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  event_exposure [UC DOCUMENTED]: Assumed event significance × spatial/temporal proximity weight summed near route stops (600 m); dimensionless prior, not causal or measured demand.
+  event_pre [UC DOCUMENTED]: Summed assumed pre-event significance/time-kernel weight, dimensionless.
+  event_post [UC DOCUMENTED]: Summed assumed post-event significance/time-kernel weight, dimensionless.
+  event_during [UC DOCUMENTED]: Summed assumed during-event significance/time-kernel weight, dimensionless.
+  football_home_game_day [UC DOCUMENTED]: Indicator for seeded/calendar home football local date; simulated demand prior.
+  event_timing_is_assumed [UC DOCUMENTED]: Indicator: some event timing filled from seeded assumptions; disclose when interpreting exposure.
+  event_schedule_is_hindsight [UC DOCUMENTED]: Indicator: historical calendar availability was not archived as-of t0; potential hindsight context.
+  unknown_size_events [UC DOCUMENTED]: Count of nearby events with unknown significance/attendance, not zero-demand events.
+  minutes_to_next_big_event [UC DOCUMENTED]: Minutes to next big event; minutes relative to feature reference time t0.
+  minutes_since_last_big_event [UC DOCUMENTED]: Minutes since last big event; minutes relative to feature reference time t0.
+  venue_type [UC DOCUMENTED]: Seeded event venue category used for demand-context features.
+  event_geo_method [UC DOCUMENTED]: Spatial matching method used for exposure; implementation uses route-stop proximity, not a causal catchment.
+
+transit.gold.ops_health
+TABLE COMMENT: DERIVED: scheduled operations watchdog checks, collector/pipeline/scoring freshness and daily APC quality totals; operational status, not passenger demand. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  run_id [UC DOCUMENTED]: Unique watchdog health-check run identifier.
+  checked_ts [UC DOCUMENTED]: Checked ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  status [UC DOCUMENTED]: Operations health result OK/FAIL/ERROR; FAIL means collector silent >30 min while GTFS service expected.
+  service_expected [UC DOCUMENTED]: Whether current UTC falls within any route-day GTFS first-to-last scheduled arrival envelope, including internal schedule gaps.
+  collector_age_min [UC DOCUMENTED]: Minutes since most recent HTTP 200 collector poll with nonnull payload; polling can be healthy even with no active buses.
+  pipeline_lag_min [UC DOCUMENTED]: Nonnegative minutes between last successful Bronze collector receipt and latest Silver ping ingest; NULL if Silver empty.
+  scoring_age_min [UC DOCUMENTED]: Minutes since latest prediction scoring timestamp.
+  last_collector_ts [UC DOCUMENTED]: Last collector ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  last_silver_ts [UC DOCUMENTED]: Last silver ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  last_scoring_ts [UC DOCUMENTED]: Last scoring ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  apc_pings [UC DOCUMENTED]: Candidate pings for current America/Chicago service date, one vehicle/GPS timestamp.
+  apc_stuck_minutes [UC DOCUMENTED]: Minutes of suspicious unchanged APC while GPS movement and distinct stop proximity indicate travel; for pings this is incremental elapsed contribution, for health rows daily total.
+  apc_over_capacity_pings [UC DOCUMENTED]: Daily readings with onboard > capacity, including quarantined candidates; count, not distinct passengers.
+  error_message [UC DOCUMENTED]: Watchdog failure detail from missing/unqueryable upstream tables; NULL for normal health checks.
+
+transit.gold.pred_vs_actual
+TABLE COMMENT: PREDICTED vs MEASURED · APC / SIMULATED: predictions joined to future target-window actual aggregates. Separate actual_data_origin; deduplicate latest scoring_ts per t0/route/direction/horizon/actual_data_origin for metrics, exclude unmatched actuals. Report n. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  scoring_ts [UC DOCUMENTED]: Model scoring run time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  t0 [UC DOCUMENTED]: Feature/reference time for forecasting; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [UC DOCUMENTED]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  horizon_min [UC DOCUMENTED]: Forecast lead time in minutes: 15, 30 or 60. Target window is [t0+horizon_min, t0+horizon_min+15 minutes).
+  pred_p10 [UC DOCUMENTED]: PREDICTED: 10th quantile of target-window p90 load_factor; fraction, lower bound of nominal 80% interval.
+  pred_p50 [UC DOCUMENTED]: PREDICTED: median of target-window p90 load_factor, fraction. Compare to actual_p90_load for MAE.
+  pred_p90 [UC DOCUMENTED]: PREDICTED: 90th quantile of target-window p90 load_factor; fraction, upper bound of nominal 80% interval.
+  p_crowd [UC DOCUMENTED]: PREDICTED: probability in [0,1] that target-window maximum load_factor >=0.75.
+  event_uplift [UC DOCUMENTED]: PREDICTED / SIMULATED prior: predicted load difference with event features versus neutralized event features; attribution, not causal effect.
+  top_factors [UC DOCUMENTED]: PREDICTED: SHAP factors (family,feature,value,contribution) grouped for display; contribution in predicted load-factor units.
+  model_name [UC DOCUMENTED]: Fully qualified UC model name transit.ml.crowding_h{horizon}; champion alias resolved when scoring.
+  model_version [UC DOCUMENTED]: UC model version actually used for this prediction; may differ from current champion after promotion.
+  feature_staleness_min [UC DOCUMENTED]: Minutes from feature reference time t0 to scoring_ts; older snapshots reduce live relevance.
+  training_data_origin [UC DOCUMENTED]: Training provenance (often simulated), NOT the origin of matched evaluation actuals; use actual_data_origin for observed performance.
+  target_window_start [UC DOCUMENTED]: Inclusive forecast verification window start t0+horizon; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  actual_p90_load [UC DOCUMENTED]: MEASURED · APC if actual_data_origin=observed, otherwise SIMULATED: target-window 90th percentile load_factor, fraction.
+  actual_max_load [UC DOCUMENTED]: Target-window maximum load_factor, fraction; consult actual_data_origin.
+  actual_crowd [UC DOCUMENTED]: Binary target: actual_max_load >=0.75 (1 crowded, 0 otherwise); consult actual_data_origin.
+  error_p50 [UC DOCUMENTED]: Signed prediction residual actual_p90_load - pred_p50 in load-factor fraction units; abs for MAE.
+  actual_in_p10_p90 [UC DOCUMENTED]: Whether actual_p90_load lies inclusively between pred_p10 and pred_p90; average cast double for nominal 80% interval coverage.
+  actual_n_pings [UC DOCUMENTED]: Number of target-window source pings; not the number of independent forecast examples.
+  actual_data_origin [UC DOCUMENTED]: Actual target provenance ('observed' or 'simulated'); use this to separate evaluation lines. NULL means no matched actual; exclude from metrics.
+
+transit.gold.predictions
+TABLE COMMENT: PREDICTED: scoring_ts/route/direction/horizon crowding predictions from UC crowding_h15/h30/h60 champion aliases. Target is future 15-minute p90 APC load. Training origin does not imply actual target origin. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  scoring_ts [UC DOCUMENTED]: Model scoring run time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  t0 [UC DOCUMENTED]: Feature/reference time for forecasting; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [UC DOCUMENTED]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  horizon_min [UC DOCUMENTED]: Forecast lead time in minutes: 15, 30 or 60. Target window is [t0+horizon_min, t0+horizon_min+15 minutes).
+  pred_p10 [UC DOCUMENTED]: PREDICTED: 10th quantile of target-window p90 load_factor; fraction, lower bound of nominal 80% interval.
+  pred_p50 [UC DOCUMENTED]: PREDICTED: median of target-window p90 load_factor, fraction. Compare to actual_p90_load for MAE.
+  pred_p90 [UC DOCUMENTED]: PREDICTED: 90th quantile of target-window p90 load_factor; fraction, upper bound of nominal 80% interval.
+  p_crowd [UC DOCUMENTED]: PREDICTED: probability in [0,1] that target-window maximum load_factor >=0.75.
+  event_uplift [UC DOCUMENTED]: PREDICTED / SIMULATED prior: predicted load difference with event features versus neutralized event features; attribution, not causal effect.
+  top_factors [UC DOCUMENTED]: PREDICTED: SHAP factors (family,feature,value,contribution) grouped for display; contribution in predicted load-factor units.
+  model_name [UC DOCUMENTED]: Fully qualified UC model name transit.ml.crowding_h{horizon}; champion alias resolved when scoring.
+  model_version [UC DOCUMENTED]: UC model version actually used for this prediction; may differ from current champion after promotion.
+  feature_staleness_min [UC DOCUMENTED]: Minutes from feature reference time t0 to scoring_ts; older snapshots reduce live relevance.
+  training_data_origin [UC DOCUMENTED]: Training provenance (often simulated), NOT the origin of matched evaluation actuals; use actual_data_origin for observed performance.
+
+transit.gold.predictions_latest
+TABLE COMMENT: PREDICTED: latest scoring snapshot per route/direction/horizon; pred_p10/p50/p90 are quantiles of future 15-minute p90 load factor, not passenger counts. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  scoring_ts [UC DOCUMENTED]: Model scoring run time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  t0 [UC DOCUMENTED]: Feature/reference time for forecasting; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [UC DOCUMENTED]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  horizon_min [UC DOCUMENTED]: Forecast lead time in minutes: 15, 30 or 60. Target window is [t0+horizon_min, t0+horizon_min+15 minutes).
+  pred_p10 [UC DOCUMENTED]: PREDICTED: 10th quantile of target-window p90 load_factor; fraction, lower bound of nominal 80% interval.
+  pred_p50 [UC DOCUMENTED]: PREDICTED: median of target-window p90 load_factor, fraction. Compare to actual_p90_load for MAE.
+  pred_p90 [UC DOCUMENTED]: PREDICTED: 90th quantile of target-window p90 load_factor; fraction, upper bound of nominal 80% interval.
+  p_crowd [UC DOCUMENTED]: PREDICTED: probability in [0,1] that target-window maximum load_factor >=0.75.
+  event_uplift [UC DOCUMENTED]: PREDICTED / SIMULATED prior: predicted load difference with event features versus neutralized event features; attribution, not causal effect.
+  top_factors [UC DOCUMENTED]: PREDICTED: SHAP factors (family,feature,value,contribution) grouped for display; contribution in predicted load-factor units.
+  model_name [UC DOCUMENTED]: Fully qualified UC model name transit.ml.crowding_h{horizon}; champion alias resolved when scoring.
+  model_version [UC DOCUMENTED]: UC model version actually used for this prediction; may differ from current champion after promotion.
+  feature_staleness_min [UC DOCUMENTED]: Minutes from feature reference time t0 to scoring_ts; older snapshots reduce live relevance.
+  training_data_origin [UC DOCUMENTED]: Training provenance (often simulated), NOT the origin of matched evaluation actuals; use actual_data_origin for observed performance.
+
+transit.gold.route_dir_15m
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: route/direction/UTC 15-minute aggregate of valid vehicle pings and inferred service metrics; n_pings is sample count. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  window_start [GENIE FALLBACK]: Inclusive UTC 15-minute aggregation window start; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  avg_load_factor [GENIE FALLBACK]: Mean onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  p90_load_factor [GENIE FALLBACK]: 90th percentile onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  max_load_factor [GENIE FALLBACK]: Maximum onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  active_vehicles [GENIE FALLBACK]: Distinct vehicles in window, not instantaneous fleet size; SIMULATED on synthetic rows.
+  sched_trips [GENIE FALLBACK]: Distinct scheduled GTFS trips in the UTC 15-minute window.
+  service_ratio [GENIE FALLBACK]: Active vehicles / scheduled trips in window; dimensionless availability proxy, not on-time performance.
+  headway_cv [GENIE FALLBACK]: DERIVED · GPS: sample standard deviation / mean of observed headways, dimensionless; undefined for insufficient headways. SIMULATED when data_origin=simulated.
+  bunching_rate [GENIE FALLBACK]: Fraction of valid matched headways with ratio <0.5 in window, [0,1]; consult data_origin.
+  mean_delay_s [GENIE FALLBACK]: Mean inferred arrival delay in seconds; positive late; heuristic trip matching.
+  n_pings [GENIE FALLBACK]: Count of source GPS/APC pings; repeated readings from one bus are not independent riders.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`gold`.`route_dir_15m` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.gold.route_dir_15m_sim
+TABLE COMMENT: SIMULATED: synthetic route/direction/15-minute Fall 2026 history from GTFS, weather, events and seeded class waves, calibrated to NTD. Assumed event effects are not discoveries. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [UC DOCUMENTED]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  window_start [UC DOCUMENTED]: Inclusive UTC 15-minute aggregation window start; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  sched_trips [UC DOCUMENTED]: Distinct scheduled GTFS trips in the UTC 15-minute window.
+  sim_baseline [UC DOCUMENTED]: SIMULATED: baseline component in synthetic load-factor units; simulator assumption, not measured effect.
+  sim_class_wave [UC DOCUMENTED]: SIMULATED: class wave component in synthetic load-factor units; simulator assumption, not measured effect.
+  sim_event [UC DOCUMENTED]: SIMULATED: event component in synthetic load-factor units; simulator assumption, not measured effect.
+  capacity [UC DOCUMENTED]: Reported passenger capacity in people (typically 85; RELLIS shuttle 25); denominator for load_factor.
+  sim_weather [UC DOCUMENTED]: SIMULATED: weather component in synthetic load-factor units; simulator assumption, not measured effect.
+  sim_noise [UC DOCUMENTED]: SIMULATED: noise component in synthetic load-factor units; simulator assumption, not measured effect.
+  avg_load_factor [UC DOCUMENTED]: Mean onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  active_vehicles [UC DOCUMENTED]: Distinct vehicles in window, not instantaneous fleet size; SIMULATED on synthetic rows.
+  service_ratio [UC DOCUMENTED]: Active vehicles / scheduled trips in window; dimensionless availability proxy, not on-time performance.
+  p90_load_factor [UC DOCUMENTED]: 90th percentile onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  max_load_factor [UC DOCUMENTED]: Maximum onboard/capacity across source pings in the 15-minute window; fraction. Consult data_origin.
+  headway_cv [UC DOCUMENTED]: DERIVED · GPS: sample standard deviation / mean of observed headways, dimensionless; undefined for insufficient headways. SIMULATED when data_origin=simulated.
+  bunching_rate [UC DOCUMENTED]: Fraction of valid matched headways with ratio <0.5 in window, [0,1]; consult data_origin.
+  mean_delay_s [UC DOCUMENTED]: Mean inferred arrival delay in seconds; positive late; heuristic trip matching.
+  n_pings [UC DOCUMENTED]: Count of source GPS/APC pings; repeated readings from one bus are not independent riders.
+  data_origin [UC DOCUMENTED]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  sim_clip_adjustment [UC DOCUMENTED]: SIMULATED: clip adjustment component in synthetic load-factor units; simulator assumption, not measured effect.
+
+transit.gold.seasonal_profile
+TABLE COMMENT: SIMULATED prior: training-only as-of route/direction/day-type/quarter-hour seasonal load baseline; available_at prevents looking ahead. Not observed performance evidence. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  day_type [UC DOCUMENTED]: Local calendar grouping such as weekday/weekend for seasonal baseline.
+  slot [UC DOCUMENTED]: Quarter-hour local-day slot 0..95 derived in America/Chicago; may repeat across DST fold.
+  available_at [UC DOCUMENTED]: Earliest time this train-only seasonal profile may be used; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  seasonal_slot_mean [UC DOCUMENTED]: As-of train-only mean load_factor by route/direction/day-type/15-minute slot; synthetic prior, fraction.
+
+transit.gold.stop_15m
+TABLE COMMENT: DERIVED · GPS: stop/UTC 15-minute inferred arrivals, headway and net APC boarding proxy; not measured gross boardings. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  window_start [GENIE FALLBACK]: Inclusive UTC 15-minute aggregation window start; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  arrivals [GENIE FALLBACK]: Count of inferred stop arrivals in UTC 15-minute window, not passenger boardings.
+  mean_headway_ratio [GENIE FALLBACK]: Mean valid observed/scheduled headway ratio at stop/window; dimensionless.
+  net_board_proxy_sum [GENIE FALLBACK]: Sum of net onboard changes across stop visits in window, people; NOT gross boardings.
+  max_passing_load [GENIE FALLBACK]: Maximum APC-reported onboard/capacity of inferred passing visits; fraction, consult data_origin.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`gold`.`stop_15m` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.gold.training_set
+TABLE COMMENT: MEASURED · APC / SIMULATED: feature snapshots at route/direction/t0 with future-window labels, temporal splits and explicit origin; observed labels holdout-only. Excluded from Genie. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [UC DOCUMENTED]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [UC DOCUMENTED]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  t0 [UC DOCUMENTED]: Feature/reference time for forecasting; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  dow [UC DOCUMENTED]: Local day-of-week index, Monday=0 through Sunday=6.
+  minute_of_day [UC DOCUMENTED]: Local America/Chicago clock minute since midnight, 0..1439.
+  is_class_day [UC DOCUMENTED]: Is class day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_holiday [UC DOCUMENTED]: Is holiday; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_break [UC DOCUMENTED]: Is break; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_reading_day [UC DOCUMENTED]: Is reading day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_finals [UC DOCUMENTED]: Is finals; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  week_of_term [UC DOCUMENTED]: Week index since academic term start, weeks.
+  days_to_finals [UC DOCUMENTED]: Calendar days until finals start.
+  weekend [UC DOCUMENTED]: Indicator for local Saturday/Sunday.
+  day_type [UC DOCUMENTED]: Local calendar grouping such as weekday/weekend for seasonal baseline.
+  minutes_to_next_class_start [UC DOCUMENTED]: Minutes to next class start; minutes relative to feature reference time t0.
+  minutes_since_last_class_end [UC DOCUMENTED]: Minutes since last class end; minutes relative to feature reference time t0.
+  minute_of_day_sin [UC DOCUMENTED]: Sine of cyclic local minute-of-day, dimensionless.
+  minute_of_day_cos [UC DOCUMENTED]: Cosine of cyclic local minute-of-day, dimensionless.
+  slot [UC DOCUMENTED]: Quarter-hour local-day slot 0..95 derived in America/Chicago; may repeat across DST fold.
+  load_t0 [UC DOCUMENTED]: Mean load factor from last complete [t0-15min,t0) window, fraction; use data_origin.
+  service_ratio [UC DOCUMENTED]: Active vehicles / scheduled trips in window; dimensionless availability proxy, not on-time performance.
+  headway_cv [UC DOCUMENTED]: DERIVED · GPS: sample standard deviation / mean of observed headways, dimensionless; undefined for insufficient headways. SIMULATED when data_origin=simulated.
+  bunching_rate [UC DOCUMENTED]: Fraction of valid matched headways with ratio <0.5 in window, [0,1]; consult data_origin.
+  active_vehicles [UC DOCUMENTED]: Distinct vehicles in window, not instantaneous fleet size; SIMULATED on synthetic rows.
+  p90_load_t0 [UC DOCUMENTED]: P90 load factor from last complete [t0-15min,t0) window, fraction.
+  load_lag15 [UC DOCUMENTED]: Past load at minus 15 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  service_ratio_lag15 [UC DOCUMENTED]: Past service_ratio at minus 15 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  headway_cv_lag15 [UC DOCUMENTED]: Past headway_cv at minus 15 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  bunching_rate_lag15 [UC DOCUMENTED]: Past bunching_rate at minus 15 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  active_vehicles_lag15 [UC DOCUMENTED]: Past active_vehicles at minus 15 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  load_lag30 [UC DOCUMENTED]: Past load at minus 30 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  service_ratio_lag30 [UC DOCUMENTED]: Past service_ratio at minus 30 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  headway_cv_lag30 [UC DOCUMENTED]: Past headway_cv at minus 30 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  bunching_rate_lag30 [UC DOCUMENTED]: Past bunching_rate at minus 30 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  active_vehicles_lag30 [UC DOCUMENTED]: Past active_vehicles at minus 30 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  load_lag60 [UC DOCUMENTED]: Past load at minus 60 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  service_ratio_lag60 [UC DOCUMENTED]: Past service_ratio at minus 60 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  headway_cv_lag60 [UC DOCUMENTED]: Past headway_cv at minus 60 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  bunching_rate_lag60 [UC DOCUMENTED]: Past bunching_rate at minus 60 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  active_vehicles_lag60 [UC DOCUMENTED]: Past active_vehicles at minus 60 minutes relative to the last complete feature window (load_t0 starts t0-15min); load is fraction, headway CV/rates/ratios dimensionless, active vehicles count; provenance follows data_origin.
+  delta_load_30m [UC DOCUMENTED]: Current minus 30-minute-lag load-factor fraction.
+  service_shortfall [UC DOCUMENTED]: Service shortfall max(1-service_ratio, 0), dimensionless.
+  headway_cv_last30m [UC DOCUMENTED]: Mean headway CV over past 30 minutes, dimensionless.
+  bunching_last30m [UC DOCUMENTED]: Mean bunching rate over past 30 minutes, fraction.
+  load_same_slot_last_week [UC DOCUMENTED]: Load-factor fraction at same local slot one week earlier; provenance-aware as-of lookup.
+  seasonal_slot_mean [UC DOCUMENTED]: As-of train-only mean load_factor by route/direction/day-type/15-minute slot; synthetic prior, fraction.
+  precip_now [UC DOCUMENTED]: Precipitation at t0 in mm/hour, provider forecast/observation flags apply.
+  precip_next_hour [UC DOCUMENTED]: Next-hour precipitation in mm/hour; observed substitution flagged weather_is_observed_proxy.
+  apparent_c [UC DOCUMENTED]: Apparent (feels-like) temperature in degrees Celsius.
+  wind_kph [UC DOCUMENTED]: Wind speed in kilometers/hour.
+  weather_is_observed_proxy [UC DOCUMENTED]: Weather is observed proxy; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  weather_now_is_observed_proxy [UC DOCUMENTED]: Weather now is observed proxy; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  weather_forecast_issued_ts [UC DOCUMENTED]: Weather forecast issued ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  rain_onset [UC DOCUMENTED]: Indicator: no precipitation now and positive next-hour precipitation.
+  heat_gt_35c [UC DOCUMENTED]: Indicator: apparent temperature >35 degrees Celsius.
+  event_exposure [UC DOCUMENTED]: Assumed event significance × spatial/temporal proximity weight summed near route stops (600 m); dimensionless prior, not causal or measured demand.
+  event_pre [UC DOCUMENTED]: Summed assumed pre-event significance/time-kernel weight, dimensionless.
+  event_post [UC DOCUMENTED]: Summed assumed post-event significance/time-kernel weight, dimensionless.
+  event_during [UC DOCUMENTED]: Summed assumed during-event significance/time-kernel weight, dimensionless.
+  football_home_game_day [UC DOCUMENTED]: Indicator for seeded/calendar home football local date; simulated demand prior.
+  event_timing_is_assumed [UC DOCUMENTED]: Indicator: some event timing filled from seeded assumptions; disclose when interpreting exposure.
+  event_schedule_is_hindsight [UC DOCUMENTED]: Indicator: historical calendar availability was not archived as-of t0; potential hindsight context.
+  unknown_size_events [UC DOCUMENTED]: Count of nearby events with unknown significance/attendance, not zero-demand events.
+  minutes_to_next_big_event [UC DOCUMENTED]: Minutes to next big event; minutes relative to feature reference time t0.
+  minutes_since_last_big_event [UC DOCUMENTED]: Minutes since last big event; minutes relative to feature reference time t0.
+  venue_type [UC DOCUMENTED]: Seeded event venue category used for demand-context features.
+  event_geo_method [UC DOCUMENTED]: Spatial matching method used for exposure; implementation uses route-stop proximity, not a causal catchment.
+  stop_count [UC DOCUMENTED]: Distinct GTFS stops served by route/direction.
+  route_length_m [UC DOCUMENTED]: Route length m; meters, derived from GPS/GTFS geometry.
+  serves_kyle_field [UC DOCUMENTED]: Serves kyle field; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  serves_msc [UC DOCUMENTED]: Serves msc; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  scheduled_trips_t0 [UC DOCUMENTED]: Count of GTFS scheduled trips in reference quarter-hour.
+  scheduled_frequency_per_hour [UC DOCUMENTED]: Scheduled trips in t0 quarter-hour times four, trips/hour proxy.
+  active_alert [UC DOCUMENTED]: Indicator of a TripSpark interruption active at t0.
+  closed_stop_count [UC DOCUMENTED]: Count of stops closed by active interruption.
+  upcoming_alert_60m [UC DOCUMENTED]: Indicator of interruption beginning within 60 minutes after t0.
+  split [UC DOCUMENTED]: Forward-time train/validation/test assignment; observed labels reserved for holdout; no random split.
+  y_p90load_h15 [UC DOCUMENTED]: Future 15-minute target label: p90load_h15; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_crowd_h15 [UC DOCUMENTED]: Future 15-minute target label: crowd_h15; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_hwcv_h15 [UC DOCUMENTED]: Future 15-minute target label: hwcv_h15; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  data_origin_h15 [UC DOCUMENTED]: Future label provenance for horizon 15 minutes; never equate with current feature origin.
+  y_p90load_h30 [UC DOCUMENTED]: Future 15-minute target label: p90load_h30; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_crowd_h30 [UC DOCUMENTED]: Future 15-minute target label: crowd_h30; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_hwcv_h30 [UC DOCUMENTED]: Future 15-minute target label: hwcv_h30; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  data_origin_h30 [UC DOCUMENTED]: Future label provenance for horizon 30 minutes; never equate with current feature origin.
+  y_p90load_h60 [UC DOCUMENTED]: Future 15-minute target label: p90load_h60; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_crowd_h60 [UC DOCUMENTED]: Future 15-minute target label: crowd_h60; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  y_hwcv_h60 [UC DOCUMENTED]: Future 15-minute target label: hwcv_h60; p90load is load-factor fraction, crowd is max load>=0.75, hwcv is dimensionless headway CV. Horizon suffix is minutes; use corresponding data_origin_h*.
+  data_origin_h60 [UC DOCUMENTED]: Future label provenance for horizon 60 minutes; never equate with current feature origin.
+  data_origin [UC DOCUMENTED]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+
+transit.silver.academic_days
+TABLE COMMENT: DERIVED · GPS: hand-curated TAMU academic-calendar seed, one College Station local calendar date; class/holiday/finals features. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  date [GENIE FALLBACK]: Date; local calendar date in America/Chicago, not a UTC instant.
+  term [GENIE FALLBACK]: Seeded TAMU academic term label, e.g. Fall 2026.
+  is_class_day [GENIE FALLBACK]: Is class day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_holiday [GENIE FALLBACK]: Is holiday; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_break [GENIE FALLBACK]: Is break; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_reading_day [GENIE FALLBACK]: Is reading day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_finals [GENIE FALLBACK]: Is finals; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_commencement [GENIE FALLBACK]: Is commencement; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  week_of_term [GENIE FALLBACK]: Week index since academic term start, weeks.
+  days_to_finals [GENIE FALLBACK]: Calendar days until finals start.
+  notes [GENIE FALLBACK]: Academic seed annotation or source caveat, not a measured feature.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`academic_days` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.apc_quality
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: per vehicle/local service-day sensor quality counts, including quarantined over-capacity candidates and time with suspicious flat APC while moving between stops. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  service_date [GENIE FALLBACK]: Service date; local calendar date in America/Chicago, not a UTC instant.
+  pings [GENIE FALLBACK]: Count of deduplicated vehicle/GPS-time candidate readings per local service day, before quality rejection.
+  over_capacity_pings [GENIE FALLBACK]: Candidate readings with onboard > capacity for vehicle/day, including rejected readings >1.5x capacity.
+  stuck_minutes [GENIE FALLBACK]: Sum of incremental suspicious flat-APC duration per vehicle/local service day, minutes; diagnostic, not proven sensor fault.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`apc_quality` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.class_periods
+TABLE COMMENT: DERIVED · GPS: seeded registrar class schedule grid; local America/Chicago clock times and source/retrieval metadata. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  pattern [GENIE FALLBACK]: Registrar class meeting weekday pattern, e.g. MWF or TR.
+  start_time [GENIE FALLBACK]: Class start as America/Chicago local HH:MM clock time.
+  end_time [GENIE FALLBACK]: Class end as America/Chicago local HH:MM clock time.
+  source [GENIE FALLBACK]: Original data provider or seed source; consult alongside provenance flags.
+  campus_region [GENIE FALLBACK]: Registrar class-grid campus/region applicability.
+  retrieved_date [GENIE FALLBACK]: Retrieved date; local calendar date in America/Chicago, not a UTC instant.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  start_time_seconds [GENIE FALLBACK]: Class start in local seconds since midnight, not Unix epoch.
+  end_time_seconds [GENIE FALLBACK]: Class end in local seconds since midnight, not Unix epoch.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`class_periods` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95
+TABLE COMMENT: DERIVED: native Lakeflow pipeline event log; operational lineage/expectation evidence, not passenger observations. Sum expectation passes/failures separately from dropped_records to avoid double counting. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  id [UC DOCUMENTED]: Unique Lakeflow pipeline event-log record identifier.
+  sequence [UC DOCUMENTED]: Lakeflow event ordering structure; use event timestamp and origin for reporting scopes.
+  origin [UC DOCUMENTED]: Lakeflow pipeline/flow/update/batch identity struct; group by pipeline_id and flow_name to scope metrics.
+  timestamp [UC DOCUMENTED]: Timestamp; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  message [UC DOCUMENTED]: Human-readable Lakeflow event log message; structured metrics are in details.
+  level [UC DOCUMENTED]: Lakeflow log severity, e.g. INFO, WARN or ERROR.
+  maturity_level [UC DOCUMENTED]: Lakeflow event schema maturity, e.g. STABLE or EVOLVING.
+  error [UC DOCUMENTED]: Lakeflow error structure, including exception text and fatal/retry context; NULL for normal events.
+  details [UC DOCUMENTED]: Lakeflow event-specific JSON, including flow_progress.metrics and data_quality expectations/dropped_records.
+  event_type [UC DOCUMENTED]: Lakeflow event type such as flow_progress; select completed flow records for expectation metrics.
+
+transit.silver.event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee
+TABLE COMMENT: DERIVED: native Lakeflow pipeline event log; operational lineage/expectation evidence, not passenger observations. Sum expectation passes/failures separately from dropped_records to avoid double counting. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  id [UC DOCUMENTED]: Unique Lakeflow pipeline event-log record identifier.
+  sequence [UC DOCUMENTED]: Lakeflow event ordering structure; use event timestamp and origin for reporting scopes.
+  origin [UC DOCUMENTED]: Lakeflow pipeline/flow/update/batch identity struct; group by pipeline_id and flow_name to scope metrics.
+  timestamp [UC DOCUMENTED]: Timestamp; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  message [UC DOCUMENTED]: Human-readable Lakeflow event log message; structured metrics are in details.
+  level [UC DOCUMENTED]: Lakeflow log severity, e.g. INFO, WARN or ERROR.
+  maturity_level [UC DOCUMENTED]: Lakeflow event schema maturity, e.g. STABLE or EVOLVING.
+  error [UC DOCUMENTED]: Lakeflow error structure, including exception text and fatal/retry context; NULL for normal events.
+  details [UC DOCUMENTED]: Lakeflow event-specific JSON, including flow_progress.metrics and data_quality expectations/dropped_records.
+  event_type [UC DOCUMENTED]: Lakeflow event type such as flow_progress; select completed flow records for expectation metrics.
+
+transit.silver.events
+TABLE COMMENT: DERIVED · GPS: curated TAMU LiveWhale College Station event calendar; virtual/low-relevance/canceled events filtered, coordinates may use seeded venue lookup. Event significance and attendance are assumptions, not measured demand. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  event_id [GENIE FALLBACK]: TAMU LiveWhale calendar event identifier; distinct from pipeline event-log id.
+  title [GENIE FALLBACK]: Source calendar event or TripSpark alert human-readable title.
+  start_ts [GENIE FALLBACK]: Start ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  end_ts [GENIE FALLBACK]: End ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  is_all_day [GENIE FALLBACK]: Is all day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  location_title [GENIE FALLBACK]: Calendar venue display text; seeded venue_key/coordinates may normalize variants.
+  venue_key [GENIE FALLBACK]: Normalized seeded venue lookup key, e.g. kyle_field.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  campus [GENIE FALLBACK]: Calendar campus classification retained by the College Station relevance filter.
+  category [GENIE FALLBACK]: Calendar event category used in significance weighting.
+  event_types [GENIE FALLBACK]: Original LiveWhale event-type labels retained for calendar classification.
+  audience [GENIE FALLBACK]: LiveWhale intended audience labels; used in heuristic significance weighting.
+  group_title [GENIE FALLBACK]: LiveWhale calendar publishing/organizing group.
+  rsvp_total [GENIE FALLBACK]: Calendar-reported RSVP count, not measured attendance or transit boardings.
+  is_athletics [GENIE FALLBACK]: Is athletics; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_football_home [GENIE FALLBACK]: Whether calendar/seed identifies a TAMU home football event.
+  est_attendance [GENIE FALLBACK]: Assumed event attendance in people from venue capacity or RSVP; not measured turnout.
+  significance [GENIE FALLBACK]: Heuristic dimensionless log1p(attendance/capacity) × category/audience weights; assumed importance, not measured demand.
+  is_canceled [GENIE FALLBACK]: Is canceled; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`events` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.events_evaluated
+TABLE COMMENT: DERIVED · GPS: TAMU LiveWhale event candidates with filter reason before final retention; audit dataset, not the curated event list. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  event_id [GENIE FALLBACK]: TAMU LiveWhale calendar event identifier; distinct from pipeline event-log id.
+  title [GENIE FALLBACK]: Source calendar event or TripSpark alert human-readable title.
+  start_ts [GENIE FALLBACK]: Start ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  end_ts [GENIE FALLBACK]: End ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  is_all_day [GENIE FALLBACK]: Is all day; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  location_title [GENIE FALLBACK]: Calendar venue display text; seeded venue_key/coordinates may normalize variants.
+  venue_key [GENIE FALLBACK]: Normalized seeded venue lookup key, e.g. kyle_field.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  campus [GENIE FALLBACK]: Calendar campus classification retained by the College Station relevance filter.
+  category [GENIE FALLBACK]: Calendar event category used in significance weighting.
+  event_types [GENIE FALLBACK]: Original LiveWhale event-type labels retained for calendar classification.
+  audience [GENIE FALLBACK]: LiveWhale intended audience labels; used in heuristic significance weighting.
+  group_title [GENIE FALLBACK]: LiveWhale calendar publishing/organizing group.
+  rsvp_total [GENIE FALLBACK]: Calendar-reported RSVP count, not measured attendance or transit boardings.
+  is_athletics [GENIE FALLBACK]: Is athletics; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  is_football_home [GENIE FALLBACK]: Whether calendar/seed identifies a TAMU home football event.
+  est_attendance [GENIE FALLBACK]: Assumed event attendance in people from venue capacity or RSVP; not measured turnout.
+  significance [GENIE FALLBACK]: Heuristic dimensionless log1p(attendance/capacity) × category/audience weights; assumed importance, not measured demand.
+  is_canceled [GENIE FALLBACK]: Is canceled; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  reason [GENIE FALLBACK]: Normalization/filter diagnostic reason; retained/rejected classification explained by kept/dropped counts.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  _normalization_revision [GENIE FALLBACK]: Normalization code/version marker for deterministic ingestion refreshes.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`events_evaluated` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.events_filter_stats
+TABLE COMMENT: DERIVED · GPS: counts of LiveWhale event candidates raw/kept/dropped grouped by filter reason; sums reconstruct the evaluated event set. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  reason [GENIE FALLBACK]: Normalization/filter diagnostic reason; retained/rejected classification explained by kept/dropped counts.
+  raw_count [GENIE FALLBACK]: Number of evaluated event candidates in this filter reason group.
+  kept_count [GENIE FALLBACK]: Candidates retained by event relevance filter in this reason group.
+  dropped_count [GENIE FALLBACK]: Candidates rejected by event relevance filter in this reason group.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`events_filter_stats` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_calendar_dates
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS calendar_dates schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  service_id [GENIE FALLBACK]: GTFS service-calendar identifier, joined to calendar_dates to expand operating dates.
+  date [GENIE FALLBACK]: Date; local calendar date in America/Chicago, not a UTC instant.
+  exception_type [GENIE FALLBACK]: GTFS calendar exception 1 added service or 2 removed service.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_calendar_dates` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_routes
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS routes schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  route_id [GENIE FALLBACK]: Official GTFS route identifier; join gtfs_routes for display name.
+  agency_id [GENIE FALLBACK]: Official GTFS agency identifier.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_long_name [GENIE FALLBACK]: Official GTFS human-readable route name, e.g. Bonfire.
+  route_desc [GENIE FALLBACK]: Official GTFS route description text.
+  route_type [GENIE FALLBACK]: Official GTFS transport mode code; 3 is bus (extended codes follow publisher specification).
+  route_color [GENIE FALLBACK]: Official GTFS route background hexadecimal RGB color without #.
+  route_text_color [GENIE FALLBACK]: Official GTFS route foreground/text hexadecimal RGB color without #.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_routes` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_shapes
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS shapes schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  shape_id [GENIE FALLBACK]: Official GTFS route-path geometry identifier, join gtfs_shapes within feed_version.
+  shape_pt_lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  shape_pt_lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  shape_pt_sequence [GENIE FALLBACK]: GTFS order of point within shape, ascending integer.
+  shape_dist_traveled [GENIE FALLBACK]: GTFS publisher-provided along-shape distance; vendor units not guaranteed, do not assume meters.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_shapes` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_stop_times
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS stop_times schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  trip_id [GENIE FALLBACK]: Official GTFS scheduled trip identifier within feed_version; not an observed vehicle identifier.
+  arrival_time [GENIE FALLBACK]: Official GTFS local service-day HH:MM:SS; can exceed 24:00.
+  departure_time [GENIE FALLBACK]: Official GTFS local service-day HH:MM:SS; can exceed 24:00.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  stop_sequence [GENIE FALLBACK]: GTFS order of stop within trip, ascending integer.
+  pickup_type [GENIE FALLBACK]: GTFS pickup rule: 0 regular, 1 unavailable, 2 phone arrangement, 3 driver arrangement.
+  drop_off_type [GENIE FALLBACK]: GTFS drop-off rule: 0 regular, 1 unavailable, 2 phone arrangement, 3 driver arrangement.
+  shape_dist_traveled [GENIE FALLBACK]: GTFS publisher-provided along-shape distance; vendor units not guaranteed, do not assume meters.
+  timepoint [GENIE FALLBACK]: GTFS 1 exact timepoint or 0 estimated time.
+  stop_headsign [GENIE FALLBACK]: GTFS destination/headsign override at this trip stop.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  arrival_time_seconds [GENIE FALLBACK]: GTFS local service-day elapsed seconds; may exceed 86400; not UTC epoch.
+  departure_time_seconds [GENIE FALLBACK]: GTFS local service-day elapsed seconds; may exceed 86400; not UTC epoch.
+  arrival_secs [GENIE FALLBACK]: GTFS local service-day elapsed seconds; may exceed 86400; not UTC epoch.
+  departure_secs [GENIE FALLBACK]: GTFS local service-day elapsed seconds; may exceed 86400; not UTC epoch.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_stop_times` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_stops
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS stops schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  stop_code [GENIE FALLBACK]: Public TAMU stop code; matches TripSpark stop metadata.
+  stop_name [GENIE FALLBACK]: Official TAMU GTFS human-readable stop name.
+  stop_desc [GENIE FALLBACK]: Official GTFS stop description.
+  stop_lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  stop_lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  location_type [GENIE FALLBACK]: GTFS location type: 0 stop/platform, 1 station, 2 entrance, 3 generic node, 4 boarding area.
+  wheelchair_boarding [GENIE FALLBACK]: GTFS accessibility: 0 unknown/inherited, 1 accessible boarding, 2 inaccessible boarding.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_stops` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.gtfs_trips
+TABLE COMMENT: DERIVED · GPS: official TAMU Transportation Services GTFS trips schedule/reference feed, typed from Bronze; schedule is not measured service. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  feed_version [GENIE FALLBACK]: Official TAMU GTFS feed version string; join same versions when present.
+  route_id [GENIE FALLBACK]: Official GTFS route identifier; join gtfs_routes for display name.
+  service_id [GENIE FALLBACK]: GTFS service-calendar identifier, joined to calendar_dates to expand operating dates.
+  trip_id [GENIE FALLBACK]: Official GTFS scheduled trip identifier within feed_version; not an observed vehicle identifier.
+  shape_id [GENIE FALLBACK]: Official GTFS route-path geometry identifier, join gtfs_shapes within feed_version.
+  trip_headsign [GENIE FALLBACK]: Official GTFS scheduled trip destination/headsign.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  block_id [GENIE FALLBACK]: GTFS vehicle work-block identifier linking sequential scheduled trips; not observed vehicle_id.
+  _rescued_data [GENIE FALLBACK]: Auto Loader unparsed/unexpected fields serialized as JSON; NULL is normal.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`gtfs_trips` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.headways
+TABLE COMMENT: DERIVED · GPS: consecutive inferred arrivals at a stop/route/direction, compared with official GTFS schedule; bunching ratio <0.5, gaps >1.5. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  arrive_ts [GENIE FALLBACK]: GPS-inferred stop arrival; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  prev_arrive_ts [GENIE FALLBACK]: Previous inferred stop arrival for same route/direction/stop; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  obs_headway_s [GENIE FALLBACK]: DERIVED · GPS: seconds between successive inferred arrivals at this stop/route/direction; provenance separated.
+  sched_headway_s [GENIE FALLBACK]: Seconds between adjacent scheduled GTFS arrivals at the matched stop/route/direction.
+  headway_ratio [GENIE FALLBACK]: obs_headway_s / sched_headway_s, dimensionless; NULL if no valid schedule match.
+  is_bunched [GENIE FALLBACK]: True when headway_ratio <0.5; NULL if no valid headway/schedule denominator.
+  is_gap [GENIE FALLBACK]: True when headway_ratio >1.5; NULL if no valid headway/schedule denominator.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`headways` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.ntd_monthly
+TABLE COMMENT: MEASURED: US FTA National Transit Database TAMU agency 60278 monthly totals; UPT is unlinked passenger trips (boardings), not distinct riders or APC onboard counts. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  ntd_id [GENIE FALLBACK]: FTA National Transit Database agency identifier; TAMU 60278.
+  agency [GENIE FALLBACK]: NTD reporting agency name, Texas A&M University Transportation Services.
+  mode [GENIE FALLBACK]: NTD transit mode code, MB is motor bus.
+  tos [GENIE FALLBACK]: NTD type-of-service code, DO is directly operated.
+  upt [GENIE FALLBACK]: MEASURED: NTD unlinked passenger trips (boardings) during reporting month; not unique riders or onboard occupancy.
+  vrm [GENIE FALLBACK]: NTD vehicle revenue miles during reporting month, miles.
+  vrh [GENIE FALLBACK]: NTD vehicle revenue hours during reporting month, hours.
+  voms [GENIE FALLBACK]: NTD vehicles operated in maximum service, count.
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  month [GENIE FALLBACK]: First calendar date of NTD reporting month; not a UTC event timestamp.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`ntd_monthly` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.route_direction_map
+TABLE COMMENT: DERIVED · GPS: ranked GPS-to-GTFS shape/direction matching candidates; only is_selected=true is the chosen mapping. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  route_id [GENIE FALLBACK]: Official GTFS route identifier; join gtfs_routes for display name.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  shape_id [GENIE FALLBACK]: Official GTFS route-path geometry identifier, join gtfs_shapes within feed_version.
+  median_offset_m [GENIE FALLBACK]: Median offset m; meters, derived from GPS/GTFS geometry.
+  fit_quality [GENIE FALLBACK]: GPS-to-shape heuristic exp(-median_offset_m/50), dimensionless [0,1], higher better.
+  backward_fraction [GENIE FALLBACK]: Fraction of GPS projected steps moving backwards on candidate shape.
+  candidate_rank [GENIE FALLBACK]: Candidate direction/shape fit rank, 1 best.
+  is_selected [GENIE FALLBACK]: Selected best candidate (rank 1 and median offset <=100 m).
+  n_pings [GENIE FALLBACK]: Count of source GPS/APC pings; repeated readings from one bus are not independent riders.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`route_direction_map` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.schedule_expanded
+TABLE COMMENT: DERIVED · GPS: official TAMU GTFS stop schedule expanded by service_date and calendar exceptions; scheduled times are not observed arrivals. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  service_date [GENIE FALLBACK]: Service date; local calendar date in America/Chicago, not a UTC instant.
+  trip_id [GENIE FALLBACK]: Official GTFS scheduled trip identifier within feed_version; not an observed vehicle identifier.
+  route_id [GENIE FALLBACK]: Official GTFS route identifier; join gtfs_routes for display name.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  shape_id [GENIE FALLBACK]: Official GTFS route-path geometry identifier, join gtfs_shapes within feed_version.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  stop_sequence [GENIE FALLBACK]: GTFS order of stop within trip, ascending integer.
+  sched_arrival_ts [GENIE FALLBACK]: Sched arrival ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  sched_departure_ts [GENIE FALLBACK]: Sched departure ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  is_timepoint [GENIE FALLBACK]: Is timepoint; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`schedule_expanded` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.service_alerts
+TABLE COMMENT: DERIVED · GPS: TripSpark current/upcoming service interruptions; dates UTC, recurring daily windows America/Chicago, affected route and closed stop lists. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  alert_id [GENIE FALLBACK]: TripSpark service-interruption identifier.
+  start_ts [GENIE FALLBACK]: Start ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  end_ts [GENIE FALLBACK]: End ts; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  daily_window [GENIE FALLBACK]: Service alert recurring local clock window; evaluate with America/Chicago, not UTC clock alone.
+  title [GENIE FALLBACK]: Source calendar event or TripSpark alert human-readable title.
+  text [GENIE FALLBACK]: TripSpark interruption advisory text, parsed from original HTML description.
+  routes [GENIE FALLBACK]: Affected official route_short_name strings, including hyphenated weekend services.
+  closed_stops [GENIE FALLBACK]: Affected stop identifiers from TripSpark service interruption metadata.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`service_alerts` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.stop_visits
+TABLE COMMENT: DERIVED · GPS: inferred stop arrivals/departures from GPS shape projection, about ±15 seconds at 30-second polling; net_board_proxy is net APC change, not gross boardings. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  direction_id [GENIE FALLBACK]: GTFS direction integer 0/1; use direction_name for display, do not assume inbound/outbound semantics.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  stop_id [GENIE FALLBACK]: Official GTFS stop identifier, join gtfs_stops for name/coordinates.
+  stop_sequence [GENIE FALLBACK]: GTFS order of stop within trip, ascending integer.
+  arrive_ts [GENIE FALLBACK]: GPS-inferred stop arrival; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  depart_ts [GENIE FALLBACK]: GPS-inferred stop departure; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  dwell_s [GENIE FALLBACK]: Inferred stop dwell duration depart_ts-arrive_ts in seconds.
+  onboard_before [GENIE FALLBACK]: APC-reported onboard people before inferred stop visit.
+  onboard_after [GENIE FALLBACK]: APC-reported onboard people after inferred stop visit.
+  net_board_proxy [GENIE FALLBACK]: onboard_after - onboard_before in people inferred across stop visit; net change, NOT gross boardings.
+  shape_dist_m [GENIE FALLBACK]: Shape dist m; meters, derived from GPS/GTFS geometry.
+  matched_trip_id [GENIE FALLBACK]: Heuristically matched GTFS trip for stop visit; NULL if no confident schedule match.
+  sched_ts [GENIE FALLBACK]: Heuristically matched GTFS scheduled arrival; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  delay_s [GENIE FALLBACK]: Inferred arrival minus matched scheduled arrival in seconds; positive late; heuristic trip match.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`stop_visits` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.tripspark_route_mismatches
+TABLE COMMENT: DERIVED · GPS: diagnostic TripSpark route identities that could not be matched to GTFS. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  reason [GENIE FALLBACK]: Normalization/filter diagnostic reason; retained/rejected classification explained by kept/dropped counts.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`tripspark_route_mismatches` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.tripspark_routes
+TABLE COMMENT: DERIVED · GPS: TripSpark route/direction metadata joined to official TAMU GTFS route identities. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  color [GENIE FALLBACK]: TripSpark route display color, hexadecimal RGB.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  destination [GENIE FALLBACK]: TripSpark direction destination/headsign text.
+  patterns [GENIE FALLBACK]: TripSpark route direction pattern metadata; associated geometry comes from GTFS/TripSpark paths.
+  service_interruption_keys [GENIE FALLBACK]: TripSpark identifiers of currently active service interruptions.
+  upcoming_interruption_keys [GENIE FALLBACK]: TripSpark identifiers of announced future service interruptions.
+  route_id [GENIE FALLBACK]: Official GTFS route identifier; join gtfs_routes for display name.
+  route_long_name [GENIE FALLBACK]: Official GTFS human-readable route name, e.g. Bonfire.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`tripspark_routes` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.vehicle_latest
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: latest reading per vehicle; apply a five-minute ts_gps freshness filter before calling a bus active. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  vehicle_name [GENIE FALLBACK]: TripSpark fleet display number/name, not a passenger identifier.
+  ts_gps [GENIE FALLBACK]: Vehicle GPS fix time (TripSpark local clock converted on ingest); UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  poll_id [GENIE FALLBACK]: Collector poll identifier; multiple bus readings share one poll.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  speed [GENIE FALLBACK]: TripSpark vendor speed value; units unverified. Do not label mph or km/h.
+  heading [GENIE FALLBACK]: GPS compass bearing in degrees clockwise from north.
+  onboard [GENIE FALLBACK]: MEASURED · APC: reported people currently onboard; vendor counter accuracy unverified.
+  capacity [GENIE FALLBACK]: Reported passenger capacity in people (typically 85; RELLIS shuttle 25); denominator for load_factor.
+  is_extra_trip [GENIE FALLBACK]: Is extra trip; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  source_host [GENIE FALLBACK]: TripSpark source hostname for collection attribution.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  load_factor [GENIE FALLBACK]: MEASURED · APC: onboard / capacity, dimensionless fraction (0.75 = 75% full); can exceed 1.0. Crowded means >=0.75.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  nearest_stop_id [GENIE FALLBACK]: Nearest official GTFS stop identifier to GPS fix; proximity alone is not an arrival.
+  nearest_stop_dist_m [GENIE FALLBACK]: Nearest stop dist m; meters, derived from GPS/GTFS geometry.
+  h3_r10 [GENIE FALLBACK]: H3 resolution-10 cell index derived from vehicle longitude/latitude.
+  apc_flat_minutes [GENIE FALLBACK]: Elapsed minutes in contiguous same route/onboard/capacity run, resetting after long GPS gap; not alone evidence of sensor failure.
+  apc_stuck [GENIE FALLBACK]: Diagnostic flag for flat APC >=60 minutes with GPS movement and multiple nearby stops; vendor accuracy remains unverified.
+  apc_over_capacity [GENIE FALLBACK]: Reported onboard exceeds capacity; crowded can occur below this threshold.
+  apc_stuck_minutes [GENIE FALLBACK]: Minutes of suspicious unchanged APC while GPS movement and distinct stop proximity indicate travel; for pings this is incremental elapsed contribution, for health rows daily total.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`vehicle_latest` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.vehicle_pings
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: deduplicated TripSpark vehicle/GPS readings; one vehicle_id and ts_gps. APC accuracy is vendor-unverified. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  vehicle_name [GENIE FALLBACK]: TripSpark fleet display number/name, not a passenger identifier.
+  ts_gps [GENIE FALLBACK]: Vehicle GPS fix time (TripSpark local clock converted on ingest); UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  poll_id [GENIE FALLBACK]: Collector poll identifier; multiple bus readings share one poll.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  speed [GENIE FALLBACK]: TripSpark vendor speed value; units unverified. Do not label mph or km/h.
+  heading [GENIE FALLBACK]: GPS compass bearing in degrees clockwise from north.
+  onboard [GENIE FALLBACK]: MEASURED · APC: reported people currently onboard; vendor counter accuracy unverified.
+  capacity [GENIE FALLBACK]: Reported passenger capacity in people (typically 85; RELLIS shuttle 25); denominator for load_factor.
+  is_extra_trip [GENIE FALLBACK]: Is extra trip; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  source_host [GENIE FALLBACK]: TripSpark source hostname for collection attribution.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  load_factor [GENIE FALLBACK]: MEASURED · APC: onboard / capacity, dimensionless fraction (0.75 = 75% full); can exceed 1.0. Crowded means >=0.75.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  nearest_stop_id [GENIE FALLBACK]: Nearest official GTFS stop identifier to GPS fix; proximity alone is not an arrival.
+  nearest_stop_dist_m [GENIE FALLBACK]: Nearest stop dist m; meters, derived from GPS/GTFS geometry.
+  h3_r10 [GENIE FALLBACK]: H3 resolution-10 cell index derived from vehicle longitude/latitude.
+  apc_flat_minutes [GENIE FALLBACK]: Elapsed minutes in contiguous same route/onboard/capacity run, resetting after long GPS gap; not alone evidence of sensor failure.
+  apc_stuck [GENIE FALLBACK]: Diagnostic flag for flat APC >=60 minutes with GPS movement and multiple nearby stops; vendor accuracy remains unverified.
+  apc_over_capacity [GENIE FALLBACK]: Reported onboard exceeds capacity; crowded can occur below this threshold.
+  apc_stuck_minutes [GENIE FALLBACK]: Minutes of suspicious unchanged APC while GPS movement and distinct stop proximity indicate travel; for pings this is incremental elapsed contribution, for health rows daily total.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`vehicle_pings` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.vehicle_pings_candidates
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: normalized TripSpark readings before quality filtering; may contain invalid readings. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  vehicle_name [GENIE FALLBACK]: TripSpark fleet display number/name, not a passenger identifier.
+  ts_gps [GENIE FALLBACK]: Vehicle GPS fix time (TripSpark local clock converted on ingest); UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  poll_id [GENIE FALLBACK]: Collector poll identifier; multiple bus readings share one poll.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  speed [GENIE FALLBACK]: TripSpark vendor speed value; units unverified. Do not label mph or km/h.
+  heading [GENIE FALLBACK]: GPS compass bearing in degrees clockwise from north.
+  onboard [GENIE FALLBACK]: MEASURED · APC: reported people currently onboard; vendor counter accuracy unverified.
+  capacity [GENIE FALLBACK]: Reported passenger capacity in people (typically 85; RELLIS shuttle 25); denominator for load_factor.
+  is_extra_trip [GENIE FALLBACK]: Is extra trip; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  source_host [GENIE FALLBACK]: TripSpark source hostname for collection attribution.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  load_factor [GENIE FALLBACK]: MEASURED · APC: onboard / capacity, dimensionless fraction (0.75 = 75% full); can exceed 1.0. Crowded means >=0.75.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  _normalization_revision [GENIE FALLBACK]: Normalization code/version marker for deterministic ingestion refreshes.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`vehicle_pings_candidates` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.vehicle_pings_quarantine
+TABLE COMMENT: MEASURED · APC / DERIVED · GPS: rejected candidate readings with failed_expectations; do not use as valid occupancy observations. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  route_key [GENIE FALLBACK]: TripSpark route GUID, distinct from official GTFS route_id.
+  direction_key [GENIE FALLBACK]: TripSpark direction GUID; map through selected route_direction_map, not directly to GTFS direction_id.
+  vehicle_id [GENIE FALLBACK]: TripSpark vehicle identifier; one bus can contribute many time-series readings.
+  vehicle_name [GENIE FALLBACK]: TripSpark fleet display number/name, not a passenger identifier.
+  ts_gps [GENIE FALLBACK]: Vehicle GPS fix time (TripSpark local clock converted on ingest); UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ingest_ts [GENIE FALLBACK]: Landing/ingestion receipt time; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  poll_id [GENIE FALLBACK]: Collector poll identifier; multiple bus readings share one poll.
+  lat [GENIE FALLBACK]: Latitude WGS84 decimal degrees north; GPS/venue/official GTFS coordinate as applicable.
+  lon [GENIE FALLBACK]: Longitude WGS84 decimal degrees east (negative west); GPS/venue/GTFS coordinate as applicable.
+  speed [GENIE FALLBACK]: TripSpark vendor speed value; units unverified. Do not label mph or km/h.
+  heading [GENIE FALLBACK]: GPS compass bearing in degrees clockwise from north.
+  onboard [GENIE FALLBACK]: MEASURED · APC: reported people currently onboard; vendor counter accuracy unverified.
+  capacity [GENIE FALLBACK]: Reported passenger capacity in people (typically 85; RELLIS shuttle 25); denominator for load_factor.
+  is_extra_trip [GENIE FALLBACK]: Is extra trip; boolean indicator from source calendar/metadata or derived rule; NULL means unknown.
+  source_host [GENIE FALLBACK]: TripSpark source hostname for collection attribution.
+  _source_file [GENIE FALLBACK]: Immutable landing file path used for ingestion lineage.
+  route_short_name [GENIE FALLBACK]: Official route string, retain leading zeros and hyphens: 01, 01-04, 03-05, 40-41. Hyphenated names are distinct combined night/weekend services, not numeric ranges.
+  route_name [GENIE FALLBACK]: TripSpark human-readable route display name.
+  direction_name [GENIE FALLBACK]: TripSpark human-readable direction/headsign, not necessarily inbound/outbound.
+  load_factor [GENIE FALLBACK]: MEASURED · APC: onboard / capacity, dimensionless fraction (0.75 = 75% full); can exceed 1.0. Crowded means >=0.75.
+  data_origin [GENIE FALLBACK]: Provenance: 'observed' or 'simulated'. Never combine simulated and observed metrics unless explicitly asked; preserve this field in groups and joins.
+  _normalization_revision [GENIE FALLBACK]: Normalization code/version marker for deterministic ingestion refreshes.
+  failed_expectations [GENIE FALLBACK]: Names of quality expectations failed by quarantined reading.
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`vehicle_pings_quarantine` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+transit.silver.weather_hourly
+TABLE COMMENT: DERIVED · GPS: hourly Open-Meteo/NWS weather context; consult source, is_forecast and forecast_issued_ts. Forecasts and observations are different inputs. All TIMESTAMP columns are UTC; convert display with from_utc_timestamp(ts, 'America/Chicago'). Preserve observed vs simulated provenance.
+  ts_hour [GENIE FALLBACK]: Ts hour; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  temp_c [GENIE FALLBACK]: Air temperature in degrees Celsius.
+  apparent_c [GENIE FALLBACK]: Apparent (feels-like) temperature in degrees Celsius.
+  precip_mm [GENIE FALLBACK]: Hourly precipitation in millimeters.
+  rain_mm [GENIE FALLBACK]: Hourly rain in millimeters.
+  wind_kph [GENIE FALLBACK]: Wind speed in kilometers/hour.
+  weather_code [GENIE FALLBACK]: Provider weather condition code; interpret with source metadata.
+  source [GENIE FALLBACK]: Original data provider or seed source; consult alongside provenance flags.
+  is_forecast [GENIE FALLBACK]: True for provider-issued forecast weather; false for historical/observed weather context.
+  forecast_issued_ts [GENIE FALLBACK]: Weather forecast publication/as-of time; select only issues <=t0; UTC TIMESTAMP, not local clock. Convert with from_utc_timestamp(..., 'America/Chicago').
+  ALTER REJECTION: {'error_code': 'BAD_REQUEST', 'message': "[EXPECT_TABLE_NOT_VIEW.NO_ALTERNATIVE] 'ALTER TABLE ... ALTER COLUMN' expects a table but `transit`.`silver`.`weather_hourly` is a view.  SQLSTATE: 42809; line 1 pos 12"}
+
+Dataset validation evidence:
+fleet_now: SUCCEEDED, rows=1, statement=01f1db0a-4a94-17d1-b468-0ecff9ea9362
+route_now: SUCCEEDED, rows=0, statement=01f1db0a-4a94-195b-9681-68a2610bf52e
+headway_hour: SUCCEEDED, rows=94, statement=01f1db0a-4a93-1f3e-b874-21e152804443
+stop_visits: SUCCEEDED, rows=213, statement=01f1db0a-4a95-1a60-8398-8e7b1e30cb55
+forecast_metrics: SUCCEEDED, rows=37, statement=01f1db0a-4a98-100d-8bfb-e27122092f28
+forecast_observed: SUCCEEDED, rows=96, statement=01f1db0a-4add-179c-8d56-948dd5409d2e
+forecast_simulated: SUCCEEDED, rows=0, statement=01f1db0a-4aea-17a0-84cb-2f63a56e96b6
+champion_models: SUCCEEDED, rows=3, statement=01f1db0a-4b08-1d9e-ae7f-3a1d73eeef35
+expectation_rates: SUCCEEDED, rows=16, statement=01f1db0a-4b08-1fe2-9288-0e97d4e6ac1f
+pipeline_drops: SUCCEEDED, rows=46, statement=01f1db0a-4b1f-18e1-8c34-4270c1ed7fd2
+event_filter: SUCCEEDED, rows=8, statement=01f1db0a-4b25-1dcb-90dc-98ea59001201
+layer_counts: SUCCEEDED, rows=56, statement=01f1db0a-4b33-1260-a372-0ef1eb77989e
+origin_split: SUCCEEDED, rows=7, statement=01f1db0a-4b52-1eab-9dc2-9641449b50dd
+upcoming_events: SUCCEEDED, rows=15, statement=01f1db0a-4b6e-1402-bc02-936aaabccc37
+exposure_by_route: SUCCEEDED, rows=40, statement=01f1db0a-4ba4-11ca-8a5c-2f3891cc9b11
+ntd_trend: SUCCEEDED, rows=25, statement=01f1db0a-4bae-17a8-a823-5992fc7e1cc3
+genie_example_0: SUCCEEDED, rows=13, statement=01f1db0a-4baf-1996-96bb-f80b84a491bd
+genie_example_1: SUCCEEDED, rows=14, statement=01f1db0a-4bd9-14fa-8514-75b59f5f83a7
+genie_example_2: SUCCEEDED, rows=0, statement=01f1db0a-4bf3-13ca-97cd-53403e3af1f3
+genie_example_3: SUCCEEDED, rows=47, statement=01f1db0a-4c00-18a9-ae6f-12ba3c43e16b
+
+Reproduction commands (package root):
+uv run python scripts/analytics/apply_comments.py
+uv run python scripts/analytics/build_assets.py
+uv run python scripts/analytics/validate.py
+uv run pytest tests/analytics -q
+uv run ruff check scripts/analytics tests/analytics
+databricks bundle deploy -p transit
+uv run python scripts/analytics/publish_dashboard.py
+uv run python scripts/analytics/genie_space.py
+Review and mark transcript correctness; then uv run python scripts/analytics/report.py.

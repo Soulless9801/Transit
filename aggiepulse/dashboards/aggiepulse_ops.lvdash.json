@@ -1,0 +1,2357 @@
+{
+  "datasets": [
+    {
+      "name": "fleet_now",
+      "displayName": "Fleet Now",
+      "queryLines": [
+        "SELECT COUNT_IF(ts_gps >= current_timestamp()-INTERVAL 5 MINUTES) AS active_buses,\n",
+        " coalesce(SUM(CASE WHEN ts_gps >= current_timestamp()-INTERVAL 5 MINUTES THEN onboard END),0) AS total_onboard,\n",
+        " COUNT_IF(ts_gps >= current_timestamp()-INTERVAL 5 MINUTES AND load_factor>=0.75) AS crowded_buses,\n",
+        " timestampdiff(SECOND,MAX(ts_gps),current_timestamp()) AS freshest_gps_lag_s,\n",
+        " MAX(ts_gps) AS max_ts_gps_utc\n",
+        "FROM transit.silver.vehicle_latest WHERE data_origin='observed'"
+      ]
+    },
+    {
+      "name": "route_now",
+      "displayName": "Route Now",
+      "queryLines": [
+        "SELECT route_short_name,COUNT(*) AS active_buses,SUM(onboard) AS onboard,\n",
+        " SUM(capacity) AS capacity,try_divide(SUM(onboard),SUM(capacity)) AS fleet_load_factor,\n",
+        " MAX(load_factor) AS max_bus_load_factor,MAX(ts_gps) AS max_ts_gps_utc\n",
+        "FROM transit.silver.vehicle_latest\n",
+        "WHERE data_origin='observed' AND ts_gps>=current_timestamp()-INTERVAL 5 MINUTES\n",
+        "GROUP BY route_short_name ORDER BY fleet_load_factor DESC"
+      ]
+    },
+    {
+      "name": "headway_hour",
+      "displayName": "Headway Hour",
+      "queryLines": [
+        "SELECT route_short_name,direction_id,date_trunc('hour',arrive_ts) AS hour_utc,\n",
+        " COUNT(*) AS n_headways,COUNT(headway_ratio) AS n_valid_ratios,\n",
+        " try_divide(stddev_samp(obs_headway_s),AVG(obs_headway_s)) AS headway_cv,\n",
+        " AVG(CAST(is_bunched AS DOUBLE)) AS bunching_rate,\n",
+        " AVG(CAST(is_gap AS DOUBLE)) AS gap_rate,SUM(CAST(is_gap AS INT)) AS gaps\n",
+        "FROM transit.silver.headways WHERE data_origin='observed' AND arrive_ts>=current_timestamp()-INTERVAL 7 DAYS\n",
+        "GROUP BY route_short_name,direction_id,date_trunc('hour',arrive_ts) ORDER BY hour_utc DESC,route_short_name"
+      ]
+    },
+    {
+      "name": "stop_visits",
+      "displayName": "Stop Visits",
+      "queryLines": [
+        "SELECT v.route_short_name,v.stop_id,s.stop_name,COUNT(*) AS n_visits,\n",
+        " AVG(v.dwell_s) AS avg_dwell_s,SUM(v.net_board_proxy) AS net_board_proxy\n",
+        "FROM transit.silver.stop_visits v LEFT JOIN\n",
+        " (SELECT stop_id,MAX(stop_name) AS stop_name FROM transit.silver.gtfs_stops GROUP BY stop_id) s USING(stop_id)\n",
+        "WHERE v.data_origin='observed' AND v.arrive_ts>=current_timestamp()-INTERVAL 7 DAYS\n",
+        "GROUP BY v.route_short_name,v.stop_id,s.stop_name ORDER BY n_visits DESC"
+      ]
+    },
+    {
+      "name": "forecast_metrics",
+      "displayName": "Forecast Metrics",
+      "queryLines": [
+        "WITH verified AS (\n",
+        " SELECT *, row_number() OVER (\n",
+        "   PARTITION BY t0,route_short_name,direction_id,horizon_min,actual_data_origin\n",
+        "   ORDER BY scoring_ts DESC) AS rn\n",
+        " FROM transit.gold.pred_vs_actual\n",
+        " WHERE actual_p90_load IS NOT NULL AND actual_data_origin IN ('observed','simulated')\n",
+        "), latest AS (SELECT * FROM verified WHERE rn=1)\n",
+        "SELECT horizon_min,route_short_name,actual_data_origin,model_name,model_version,\n",
+        " COUNT(*) AS n,AVG(ABS(pred_p50-actual_p90_load)) AS mae_load_factor,\n",
+        " AVG(CAST(actual_in_p10_p90 AS DOUBLE)) AS interval_coverage\n",
+        "FROM latest GROUP BY horizon_min,route_short_name,actual_data_origin,model_name,model_version\n",
+        "ORDER BY actual_data_origin,horizon_min,route_short_name"
+      ]
+    },
+    {
+      "name": "forecast_observed",
+      "displayName": "Forecast Observed",
+      "queryLines": [
+        "WITH verified AS (\n",
+        " SELECT *, row_number() OVER (\n",
+        "   PARTITION BY t0,route_short_name,direction_id,horizon_min,actual_data_origin\n",
+        "   ORDER BY scoring_ts DESC) AS rn\n",
+        " FROM transit.gold.pred_vs_actual\n",
+        " WHERE actual_p90_load IS NOT NULL AND actual_data_origin IN ('observed','simulated')\n",
+        "), latest AS (SELECT * FROM verified WHERE rn=1)\n",
+        "SELECT date_trunc('hour',target_window_start) AS target_hour_utc,\n",
+        " concat(route_short_name,' / ',horizon_min,'m / ',series) AS series,\n",
+        " AVG(load_factor) AS load_factor,COUNT(*) AS n\n",
+        "FROM (SELECT *, 'predicted median' AS series,pred_p50 AS load_factor FROM latest WHERE actual_data_origin='observed'\n",
+        " UNION ALL SELECT *, 'actual p90' AS series,actual_p90_load AS load_factor FROM latest WHERE actual_data_origin='observed')\n",
+        "GROUP BY date_trunc('hour',target_window_start),route_short_name,horizon_min,series ORDER BY target_hour_utc"
+      ]
+    },
+    {
+      "name": "forecast_simulated",
+      "displayName": "Forecast Simulated",
+      "queryLines": [
+        "WITH verified AS (\n",
+        " SELECT *, row_number() OVER (\n",
+        "   PARTITION BY t0,route_short_name,direction_id,horizon_min,actual_data_origin\n",
+        "   ORDER BY scoring_ts DESC) AS rn\n",
+        " FROM transit.gold.pred_vs_actual\n",
+        " WHERE actual_p90_load IS NOT NULL AND actual_data_origin IN ('observed','simulated')\n",
+        "), latest AS (SELECT * FROM verified WHERE rn=1)\n",
+        "SELECT date_trunc('hour',target_window_start) AS target_hour_utc,\n",
+        " concat(route_short_name,' / ',horizon_min,'m / ',series) AS series,\n",
+        " AVG(load_factor) AS load_factor,COUNT(*) AS n\n",
+        "FROM (SELECT *, 'predicted median' AS series,pred_p50 AS load_factor FROM latest WHERE actual_data_origin='simulated'\n",
+        " UNION ALL SELECT *, 'actual p90' AS series,actual_p90_load AS load_factor FROM latest WHERE actual_data_origin='simulated')\n",
+        "GROUP BY date_trunc('hour',target_window_start),route_short_name,horizon_min,series ORDER BY target_hour_utc"
+      ]
+    },
+    {
+      "name": "champion_models",
+      "displayName": "Champion Models",
+      "queryLines": [
+        "SELECT * FROM VALUES ('transit.ml.crowding_h15','1','2026-11-08T00:21:05.513199+00:00'),('transit.ml.crowding_h30','1','2026-11-08T00:21:05.513199+00:00'),('transit.ml.crowding_h60','1','2026-11-08T00:21:05.513199+00:00') AS champions(model_name,champion_version,resolved_utc)"
+      ]
+    },
+    {
+      "name": "expectation_rates",
+      "displayName": "Expectation Rates",
+      "queryLines": [
+        "WITH logs AS (\n",
+        " SELECT timestamp,origin,details FROM transit.silver.event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95 WHERE event_type='flow_progress'\n",
+        " UNION ALL\n",
+        " SELECT timestamp,origin,details FROM transit.silver.event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee WHERE event_type='flow_progress'\n",
+        "), completed AS (\n",
+        " SELECT *,row_number() OVER (PARTITION BY origin.pipeline_id,origin.flow_name ORDER BY timestamp DESC) AS rn\n",
+        " FROM logs WHERE get_json_object(details,'$.flow_progress.status')='COMPLETED'\n",
+        ")\n",
+        "SELECT origin.pipeline_name AS pipeline,origin.flow_name AS flow,timestamp AS updated_utc,\n",
+        " e.name AS expectation,e.passed_records,e.failed_records,\n",
+        " try_divide(e.passed_records,e.passed_records+e.failed_records) AS pass_rate\n",
+        "FROM completed LATERAL VIEW explode(from_json(get_json_object(details,'$.flow_progress.data_quality.expectations'),\n",
+        " 'array<struct<name:string,dataset:string,passed_records:bigint,failed_records:bigint>>')) x AS e\n",
+        "WHERE rn=1 ORDER BY pipeline,flow,expectation"
+      ]
+    },
+    {
+      "name": "pipeline_drops",
+      "displayName": "Pipeline Drops",
+      "queryLines": [
+        "WITH logs AS (\n",
+        " SELECT timestamp,origin,details FROM transit.silver.event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95 WHERE event_type='flow_progress'\n",
+        " UNION ALL\n",
+        " SELECT timestamp,origin,details FROM transit.silver.event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee WHERE event_type='flow_progress'\n",
+        "), completed AS (\n",
+        " SELECT *,row_number() OVER (PARTITION BY origin.pipeline_id,origin.flow_name ORDER BY timestamp DESC) AS rn\n",
+        " FROM logs WHERE get_json_object(details,'$.flow_progress.status')='COMPLETED'\n",
+        ")\n",
+        "SELECT origin.pipeline_name AS pipeline,origin.flow_name AS flow,timestamp AS updated_utc,\n",
+        " CAST(get_json_object(details,'$.flow_progress.metrics.num_output_rows') AS BIGINT) AS output_rows,\n",
+        " CAST(get_json_object(details,'$.flow_progress.data_quality.dropped_records') AS BIGINT) AS dropped_rows,\n",
+        " CAST(get_json_object(details,'$.flow_progress.data_quality.warned_records') AS BIGINT) AS warned_rows\n",
+        "FROM completed WHERE rn=1 ORDER BY pipeline,flow"
+      ]
+    },
+    {
+      "name": "event_filter",
+      "displayName": "Event Filter",
+      "queryLines": [
+        "SELECT reason,raw_count,kept_count,dropped_count FROM transit.silver.events_filter_stats ORDER BY raw_count DESC"
+      ]
+    },
+    {
+      "name": "layer_counts",
+      "displayName": "Layer Counts",
+      "queryLines": [
+        "SELECT 'bronze' AS layer,'events' AS table_name,COUNT(*) AS row_count FROM transit.bronze.events\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_calendar_dates' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_calendar_dates\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_feed_info' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_feed_info\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_routes' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_routes\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_shapes' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_shapes\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_stop_times' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_stop_times\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_stops' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_stops\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'gtfs_trips' AS table_name,COUNT(*) AS row_count FROM transit.bronze.gtfs_trips\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'ntd_monthly' AS table_name,COUNT(*) AS row_count FROM transit.bronze.ntd_monthly\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_academic_days' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_academic_days\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_basketball_home' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_basketball_home\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_class_periods' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_class_periods\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_event_filters' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_event_filters\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_football_home' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_football_home\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'seed_venues' AS table_name,COUNT(*) AS row_count FROM transit.bronze.seed_venues\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'tripspark_base' AS table_name,COUNT(*) AS row_count FROM transit.bronze.tripspark_base\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'tripspark_vehicles' AS table_name,COUNT(*) AS row_count FROM transit.bronze.tripspark_vehicles\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'weather_nws' AS table_name,COUNT(*) AS row_count FROM transit.bronze.weather_nws\n",
+        "UNION ALL\n",
+        "SELECT 'bronze' AS layer,'weather_openmeteo' AS table_name,COUNT(*) AS row_count FROM transit.bronze.weather_openmeteo\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'event_exposure' AS table_name,COUNT(*) AS row_count FROM transit.gold.event_exposure\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'ops_health' AS table_name,COUNT(*) AS row_count FROM transit.gold.ops_health\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'pred_vs_actual' AS table_name,COUNT(*) AS row_count FROM transit.gold.pred_vs_actual\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'predictions' AS table_name,COUNT(*) AS row_count FROM transit.gold.predictions\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'predictions_latest' AS table_name,COUNT(*) AS row_count FROM transit.gold.predictions_latest\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'route_dir_15m' AS table_name,COUNT(*) AS row_count FROM transit.gold.route_dir_15m\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'route_dir_15m_sim' AS table_name,COUNT(*) AS row_count FROM transit.gold.route_dir_15m_sim\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'seasonal_profile' AS table_name,COUNT(*) AS row_count FROM transit.gold.seasonal_profile\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'stop_15m' AS table_name,COUNT(*) AS row_count FROM transit.gold.stop_15m\n",
+        "UNION ALL\n",
+        "SELECT 'gold' AS layer,'training_set' AS table_name,COUNT(*) AS row_count FROM transit.gold.training_set\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'academic_days' AS table_name,COUNT(*) AS row_count FROM transit.silver.academic_days\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'apc_quality' AS table_name,COUNT(*) AS row_count FROM transit.silver.apc_quality\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'class_periods' AS table_name,COUNT(*) AS row_count FROM transit.silver.class_periods\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95' AS table_name,COUNT(*) AS row_count FROM transit.silver.event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee' AS table_name,COUNT(*) AS row_count FROM transit.silver.event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'events' AS table_name,COUNT(*) AS row_count FROM transit.silver.events\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'events_evaluated' AS table_name,COUNT(*) AS row_count FROM transit.silver.events_evaluated\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'events_filter_stats' AS table_name,COUNT(*) AS row_count FROM transit.silver.events_filter_stats\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_calendar_dates' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_calendar_dates\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_routes' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_routes\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_shapes' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_shapes\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_stop_times' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_stop_times\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_stops' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_stops\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'gtfs_trips' AS table_name,COUNT(*) AS row_count FROM transit.silver.gtfs_trips\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'headways' AS table_name,COUNT(*) AS row_count FROM transit.silver.headways\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'ntd_monthly' AS table_name,COUNT(*) AS row_count FROM transit.silver.ntd_monthly\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'route_direction_map' AS table_name,COUNT(*) AS row_count FROM transit.silver.route_direction_map\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'schedule_expanded' AS table_name,COUNT(*) AS row_count FROM transit.silver.schedule_expanded\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'service_alerts' AS table_name,COUNT(*) AS row_count FROM transit.silver.service_alerts\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'stop_visits' AS table_name,COUNT(*) AS row_count FROM transit.silver.stop_visits\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'tripspark_route_mismatches' AS table_name,COUNT(*) AS row_count FROM transit.silver.tripspark_route_mismatches\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'tripspark_routes' AS table_name,COUNT(*) AS row_count FROM transit.silver.tripspark_routes\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'vehicle_latest' AS table_name,COUNT(*) AS row_count FROM transit.silver.vehicle_latest\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'vehicle_pings' AS table_name,COUNT(*) AS row_count FROM transit.silver.vehicle_pings\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'vehicle_pings_candidates' AS table_name,COUNT(*) AS row_count FROM transit.silver.vehicle_pings_candidates\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'vehicle_pings_quarantine' AS table_name,COUNT(*) AS row_count FROM transit.silver.vehicle_pings_quarantine\n",
+        "UNION ALL\n",
+        "SELECT 'silver' AS layer,'weather_hourly' AS table_name,COUNT(*) AS row_count FROM transit.silver.weather_hourly"
+      ]
+    },
+    {
+      "name": "origin_split",
+      "displayName": "Origin Split",
+      "queryLines": [
+        "SELECT 'silver.vehicle_pings' AS table_name,coalesce(data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.silver.vehicle_pings GROUP BY data_origin\n",
+        "UNION ALL\n",
+        "SELECT 'silver.headways' AS table_name,coalesce(data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.silver.headways GROUP BY data_origin\n",
+        "UNION ALL\n",
+        "SELECT 'gold.route_dir_15m' AS table_name,coalesce(data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.gold.route_dir_15m GROUP BY data_origin\n",
+        "UNION ALL\n",
+        "SELECT 'gold.route_dir_15m_sim' AS table_name,coalesce(data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.gold.route_dir_15m_sim GROUP BY data_origin\n",
+        "UNION ALL\n",
+        "SELECT 'gold.training_set' AS table_name,coalesce(data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.gold.training_set GROUP BY data_origin\n",
+        "UNION ALL\n",
+        "SELECT 'gold.pred_vs_actual' AS table_name,coalesce(actual_data_origin,'unmatched') AS data_origin,COUNT(*) AS row_count FROM transit.gold.pred_vs_actual GROUP BY actual_data_origin"
+      ]
+    },
+    {
+      "name": "upcoming_events",
+      "displayName": "Upcoming Events",
+      "queryLines": [
+        "SELECT title,location_title,venue_key,start_ts AS start_utc,\n",
+        " from_utc_timestamp(start_ts,'America/Chicago') AS start_chicago,significance,est_attendance,is_football_home\n",
+        "FROM transit.silver.events WHERE NOT is_canceled AND start_ts>=current_timestamp()\n",
+        " AND start_ts<current_timestamp()+INTERVAL 14 DAYS AND significance>0 ORDER BY significance DESC,start_ts"
+      ]
+    },
+    {
+      "name": "exposure_by_route",
+      "displayName": "Exposure By Route",
+      "queryLines": [
+        "SELECT route_short_name,direction_id,MIN(window_start) AS first_window_utc,MAX(window_start) AS last_window_utc,\n",
+        " MAX(event_exposure) AS peak_available_exposure,\n",
+        " MAX(CASE WHEN window_start>=current_timestamp() THEN event_exposure END) AS peak_future_exposure,MAX(football_home_game_day) AS football_home_game_day,\n",
+        " MAX(event_timing_is_assumed) AS any_assumed_timing,COUNT(*) AS n_windows\n",
+        "FROM transit.gold.event_exposure\n",
+        "GROUP BY route_short_name,direction_id ORDER BY peak_available_exposure DESC"
+      ]
+    },
+    {
+      "name": "ntd_trend",
+      "displayName": "Ntd Trend",
+      "queryLines": [
+        "SELECT month,SUM(upt) AS boardings FROM transit.silver.ntd_monthly\n",
+        "WHERE ntd_id='60278' AND mode='MB' AND tos='DO' GROUP BY month ORDER BY month"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "live_ops",
+      "displayName": "Live operations",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "fleet_now_0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fleet_now",
+                  "fields": [
+                    {
+                      "name": "active_buses",
+                      "expression": "`active_buses`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "active_buses",
+                  "displayName": "Active buses \u00b7 DERIVED \u00b7 GPS"
+                }
+              },
+              "frame": {
+                "title": "Active buses \u00b7 DERIVED \u00b7 GPS",
+                "description": "Distinct latest vehicles with GPS fixes within five minutes.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "fleet_now_1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fleet_now",
+                  "fields": [
+                    {
+                      "name": "total_onboard",
+                      "expression": "`total_onboard`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_onboard",
+                  "displayName": "Total onboard \u00b7 MEASURED \u00b7 APC"
+                }
+              },
+              "frame": {
+                "title": "Total onboard \u00b7 MEASURED \u00b7 APC",
+                "description": "Reported people on fresh active buses; APC accuracy unverified.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "fleet_now_2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fleet_now",
+                  "fields": [
+                    {
+                      "name": "crowded_buses",
+                      "expression": "`crowded_buses`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "crowded_buses",
+                  "displayName": "Buses \u226575% full \u00b7 MEASURED \u00b7 APC"
+                }
+              },
+              "frame": {
+                "title": "Buses \u226575% full \u00b7 MEASURED \u00b7 APC",
+                "description": "Fresh active buses with onboard/capacity >=0.75.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "fleet_now_3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fleet_now",
+                  "fields": [
+                    {
+                      "name": "freshest_gps_lag_s",
+                      "expression": "`freshest_gps_lag_s`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "freshest_gps_lag_s",
+                  "displayName": "Freshest GPS lag (seconds) \u00b7 DERIVED \u00b7 GPS"
+                }
+              },
+              "frame": {
+                "title": "Freshest GPS lag (seconds) \u00b7 DERIVED \u00b7 GPS",
+                "description": "Current UTC minus max(ts_gps), including stale rows. NULL means no readings.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "route_now_4",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "route_now",
+                  "fields": [
+                    {
+                      "name": "route_short_name",
+                      "expression": "`route_short_name`"
+                    },
+                    {
+                      "name": "active_buses",
+                      "expression": "`active_buses`"
+                    },
+                    {
+                      "name": "onboard",
+                      "expression": "`onboard`"
+                    },
+                    {
+                      "name": "capacity",
+                      "expression": "`capacity`"
+                    },
+                    {
+                      "name": "fleet_load_factor",
+                      "expression": "`fleet_load_factor`"
+                    },
+                    {
+                      "name": "max_bus_load_factor",
+                      "expression": "`max_bus_load_factor`"
+                    },
+                    {
+                      "name": "max_ts_gps_utc",
+                      "expression": "`max_ts_gps_utc`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Load by route now \u00b7 MEASURED \u00b7 APC",
+                "description": "Weighted onboard/capacity across fresh buses, fraction; max bus load preserves crowding extremes.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "route_short_name",
+                    "title": "Route Short Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "active_buses",
+                    "title": "Active Buses",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "onboard",
+                    "title": "Onboard",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "capacity",
+                    "title": "Capacity",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "fleet_load_factor",
+                    "title": "Fleet Load Factor",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "max_bus_load_factor",
+                    "title": "Max Bus Load Factor",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "max_ts_gps_utc",
+                    "title": "Max Ts Gps Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "service_quality",
+      "displayName": "Service quality",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "headway_hour_0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "headway_hour",
+                  "fields": [
+                    {
+                      "name": "route_short_name",
+                      "expression": "`route_short_name`"
+                    },
+                    {
+                      "name": "direction_id",
+                      "expression": "`direction_id`"
+                    },
+                    {
+                      "name": "hour_utc",
+                      "expression": "`hour_utc`"
+                    },
+                    {
+                      "name": "n_headways",
+                      "expression": "`n_headways`"
+                    },
+                    {
+                      "name": "n_valid_ratios",
+                      "expression": "`n_valid_ratios`"
+                    },
+                    {
+                      "name": "headway_cv",
+                      "expression": "`headway_cv`"
+                    },
+                    {
+                      "name": "bunching_rate",
+                      "expression": "`bunching_rate`"
+                    },
+                    {
+                      "name": "gap_rate",
+                      "expression": "`gap_rate`"
+                    },
+                    {
+                      "name": "gaps",
+                      "expression": "`gaps`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Headway CV, bunching and gaps by route/hour \u00b7 DERIVED \u00b7 GPS",
+                "description": "UTC hours; CV=sample stddev/mean seconds; bunching=ratio<0.5, gap=ratio>1.5; NULL ratios excluded from rates. Observed only, last 7 days.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "route_short_name",
+                    "title": "Route Short Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "direction_id",
+                    "title": "Direction Id",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "hour_utc",
+                    "title": "Hour Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "n_headways",
+                    "title": "N Headways",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "n_valid_ratios",
+                    "title": "N Valid Ratios",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "headway_cv",
+                    "title": "Headway Cv",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "bunching_rate",
+                    "title": "Bunching Rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  },
+                  {
+                    "fieldName": "gap_rate",
+                    "title": "Gap Rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 7
+                  },
+                  {
+                    "fieldName": "gaps",
+                    "title": "Gaps",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 8
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "stop_visits_1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "stop_visits",
+                  "fields": [
+                    {
+                      "name": "route_short_name",
+                      "expression": "`route_short_name`"
+                    },
+                    {
+                      "name": "stop_id",
+                      "expression": "`stop_id`"
+                    },
+                    {
+                      "name": "stop_name",
+                      "expression": "`stop_name`"
+                    },
+                    {
+                      "name": "n_visits",
+                      "expression": "`n_visits`"
+                    },
+                    {
+                      "name": "avg_dwell_s",
+                      "expression": "`avg_dwell_s`"
+                    },
+                    {
+                      "name": "net_board_proxy",
+                      "expression": "`net_board_proxy`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Stop visits and dwell \u00b7 DERIVED \u00b7 GPS",
+                "description": "Observed inferred visits, last 7 days. Net boarding proxy is net onboard change, never gross boardings.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "route_short_name",
+                    "title": "Route Short Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "stop_id",
+                    "title": "Stop Id",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "stop_name",
+                    "title": "Stop Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "n_visits",
+                    "title": "N Visits",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "avg_dwell_s",
+                    "title": "Avg Dwell S",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "net_board_proxy",
+                    "title": "Net Board Proxy",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    },
+    {
+      "name": "forecast_quality",
+      "displayName": "Forecast quality",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "forecast_metrics_0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "forecast_metrics",
+                  "fields": [
+                    {
+                      "name": "horizon_min",
+                      "expression": "`horizon_min`"
+                    },
+                    {
+                      "name": "route_short_name",
+                      "expression": "`route_short_name`"
+                    },
+                    {
+                      "name": "actual_data_origin",
+                      "expression": "`actual_data_origin`"
+                    },
+                    {
+                      "name": "model_name",
+                      "expression": "`model_name`"
+                    },
+                    {
+                      "name": "model_version",
+                      "expression": "`model_version`"
+                    },
+                    {
+                      "name": "n",
+                      "expression": "`n`"
+                    },
+                    {
+                      "name": "mae_load_factor",
+                      "expression": "`mae_load_factor`"
+                    },
+                    {
+                      "name": "interval_coverage",
+                      "expression": "`interval_coverage`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "MAE and interval coverage \u00b7 PREDICTED vs MEASURED \u00b7 APC / SIMULATED",
+                "description": "Separate actual_data_origin rows. Latest score per target example; n=matched forecasts. MAE is fraction (0.01=1 percentage point). p10\u2013p90 nominal coverage 80%. Rolling scored matches, not necessarily independent holdout.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "horizon_min",
+                    "title": "Horizon Min",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "route_short_name",
+                    "title": "Route Short Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "actual_data_origin",
+                    "title": "Actual Data Origin",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "model_name",
+                    "title": "Model Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "model_version",
+                    "title": "Model Version",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "n",
+                    "title": "N",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "mae_load_factor",
+                    "title": "Mae Load Factor",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  },
+                  {
+                    "fieldName": "interval_coverage",
+                    "title": "Interval Coverage",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 7
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "forecast_observed_1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "forecast_observed",
+                  "fields": [
+                    {
+                      "name": "target_hour_utc",
+                      "expression": "`target_hour_utc`"
+                    },
+                    {
+                      "name": "series",
+                      "expression": "`series`"
+                    },
+                    {
+                      "name": "load_factor",
+                      "expression": "`load_factor`"
+                    },
+                    {
+                      "name": "n",
+                      "expression": "`n`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "target_hour_utc",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "load_factor",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "series",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "frame": {
+                "title": "Forecast vs observed \u00b7 PREDICTED / MEASURED \u00b7 APC",
+                "description": "Hourly averages by route and horizon, UTC. Only matched observed targets; lines show median forecast and actual window p90, fractions.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "forecast_simulated_2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "forecast_simulated",
+                  "fields": [
+                    {
+                      "name": "target_hour_utc",
+                      "expression": "`target_hour_utc`"
+                    },
+                    {
+                      "name": "series",
+                      "expression": "`series`"
+                    },
+                    {
+                      "name": "load_factor",
+                      "expression": "`load_factor`"
+                    },
+                    {
+                      "name": "n",
+                      "expression": "`n`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "target_hour_utc",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "load_factor",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "series",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "frame": {
+                "title": "Forecast vs simulated \u00b7 PREDICTED / SIMULATED",
+                "description": "Hourly averages by route and horizon, UTC. Only matched simulated targets; lines show median forecast and actual window p90, fractions.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "champion_models_3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "champion_models",
+                  "fields": [
+                    {
+                      "name": "model_name",
+                      "expression": "`model_name`"
+                    },
+                    {
+                      "name": "champion_version",
+                      "expression": "`champion_version`"
+                    },
+                    {
+                      "name": "resolved_utc",
+                      "expression": "`resolved_utc`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Champion model versions \u00b7 PREDICTED",
+                "description": "UC @champion aliases resolved at asset build time shown below; regenerate to refresh after promotion. Evaluation rows show actual scored model_version.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "model_name",
+                    "title": "Model Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "champion_version",
+                    "title": "Champion Version",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "resolved_utc",
+                    "title": "Resolved Utc",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    },
+    {
+      "name": "data_quality",
+      "displayName": "Data quality and lineage",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "expectation_rates_0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "expectation_rates",
+                  "fields": [
+                    {
+                      "name": "pipeline",
+                      "expression": "`pipeline`"
+                    },
+                    {
+                      "name": "flow",
+                      "expression": "`flow`"
+                    },
+                    {
+                      "name": "updated_utc",
+                      "expression": "`updated_utc`"
+                    },
+                    {
+                      "name": "expectation",
+                      "expression": "`expectation`"
+                    },
+                    {
+                      "name": "passed_records",
+                      "expression": "`passed_records`"
+                    },
+                    {
+                      "name": "failed_records",
+                      "expression": "`failed_records`"
+                    },
+                    {
+                      "name": "pass_rate",
+                      "expression": "`pass_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Latest flow expectation pass rates \u00b7 DERIVED \u00b7 pipeline event log",
+                "description": "Latest completed flow per pipeline; pass/(pass+fail), not 1-dropped/output. Multiple expectations can test the same row; do not sum failures as unique dropped rows.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "pipeline",
+                    "title": "Pipeline",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "flow",
+                    "title": "Flow",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "updated_utc",
+                    "title": "Updated Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "expectation",
+                    "title": "Expectation",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "passed_records",
+                    "title": "Passed Records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "failed_records",
+                    "title": "Failed Records",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "pass_rate",
+                    "title": "Pass Rate",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "pipeline_drops_1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_drops",
+                  "fields": [
+                    {
+                      "name": "pipeline",
+                      "expression": "`pipeline`"
+                    },
+                    {
+                      "name": "flow",
+                      "expression": "`flow`"
+                    },
+                    {
+                      "name": "updated_utc",
+                      "expression": "`updated_utc`"
+                    },
+                    {
+                      "name": "output_rows",
+                      "expression": "`output_rows`"
+                    },
+                    {
+                      "name": "dropped_rows",
+                      "expression": "`dropped_rows`"
+                    },
+                    {
+                      "name": "warned_rows",
+                      "expression": "`warned_rows`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Output, dropped and warned rows \u00b7 DERIVED \u00b7 pipeline event log",
+                "description": "Latest completed flow record, not cumulative run totals. Pipeline graph / UC lineage: core 206b4370-b5cc-48eb-8eba-932dcea5dc95 \u2192 ops 3db97dca-16f4-4d27-88eb-3563ac1749ee \u2192 gold \u2192 MLflow /Shared/aggiepulse \u2192 predictions.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "pipeline",
+                    "title": "Pipeline",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "flow",
+                    "title": "Flow",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "updated_utc",
+                    "title": "Updated Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "output_rows",
+                    "title": "Output Rows",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "dropped_rows",
+                    "title": "Dropped Rows",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "warned_rows",
+                    "title": "Warned Rows",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "event_filter_2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "event_filter",
+                  "fields": [
+                    {
+                      "name": "reason",
+                      "expression": "`reason`"
+                    },
+                    {
+                      "name": "raw_count",
+                      "expression": "`raw_count`"
+                    },
+                    {
+                      "name": "kept_count",
+                      "expression": "`kept_count`"
+                    },
+                    {
+                      "name": "dropped_count",
+                      "expression": "`dropped_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Calendar raw vs kept \u00b7 DERIVED \u00b7 LiveWhale filter",
+                "description": "Reason-level counts; sum raw/kept/dropped for full evaluated set. Noise and non-campus/virtual events are rejected.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "reason",
+                    "title": "Reason",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "raw_count",
+                    "title": "Raw Count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "kept_count",
+                    "title": "Kept Count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "dropped_count",
+                    "title": "Dropped Count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "layer_counts_3",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "layer_counts",
+                  "fields": [
+                    {
+                      "name": "layer",
+                      "expression": "`layer`"
+                    },
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "row_count",
+                      "expression": "`row_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Rows by table and layer \u00b7 DERIVED \u00b7 UC table census",
+                "description": "Live COUNT(*) over all public Bronze/Silver/Gold tables at asset build discovery. Counts across grains are not unique passenger totals; internal materializations excluded.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "layer",
+                    "title": "Layer",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "table_name",
+                    "title": "Table Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "row_count",
+                    "title": "Row Count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "origin_split_4",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "origin_split",
+                  "fields": [
+                    {
+                      "name": "table_name",
+                      "expression": "`table_name`"
+                    },
+                    {
+                      "name": "data_origin",
+                      "expression": "`data_origin`"
+                    },
+                    {
+                      "name": "row_count",
+                      "expression": "`row_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Observed vs simulated rows \u00b7 MEASURED \u00b7 APC / DERIVED \u00b7 GPS / SIMULATED",
+                "description": "Separate origins per table. pred_vs_actual uses actual_data_origin (unmatched=NULL), not training origin. training_set appears only in this census, excluded from Genie.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "table_name",
+                    "title": "Table Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "data_origin",
+                    "title": "Data Origin",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "row_count",
+                    "title": "Row Count",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 28,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    },
+    {
+      "name": "events_demand",
+      "displayName": "Events and demand",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "upcoming_events_0",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "upcoming_events",
+                  "fields": [
+                    {
+                      "name": "title",
+                      "expression": "`title`"
+                    },
+                    {
+                      "name": "location_title",
+                      "expression": "`location_title`"
+                    },
+                    {
+                      "name": "venue_key",
+                      "expression": "`venue_key`"
+                    },
+                    {
+                      "name": "start_utc",
+                      "expression": "`start_utc`"
+                    },
+                    {
+                      "name": "start_chicago",
+                      "expression": "`start_chicago`"
+                    },
+                    {
+                      "name": "significance",
+                      "expression": "`significance`"
+                    },
+                    {
+                      "name": "est_attendance",
+                      "expression": "`est_attendance`"
+                    },
+                    {
+                      "name": "is_football_home",
+                      "expression": "`is_football_home`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Upcoming significant events \u00b7 DERIVED \u00b7 LiveWhale / SIMULATED prior",
+                "description": "Next 14 days; calendar times UTC and Chicago shown. Significance and attendance are heuristics, not measured demand or event turnout.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "title",
+                    "title": "Title",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "location_title",
+                    "title": "Location Title",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "venue_key",
+                    "title": "Venue Key",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "start_utc",
+                    "title": "Start Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "start_chicago",
+                    "title": "Start Chicago",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "significance",
+                    "title": "Significance",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "est_attendance",
+                    "title": "Est Attendance",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  },
+                  {
+                    "fieldName": "is_football_home",
+                    "title": "Is Football Home",
+                    "type": "boolean",
+                    "displayAs": "boolean",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 7
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "exposure_by_route_1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "exposure_by_route",
+                  "fields": [
+                    {
+                      "name": "route_short_name",
+                      "expression": "`route_short_name`"
+                    },
+                    {
+                      "name": "direction_id",
+                      "expression": "`direction_id`"
+                    },
+                    {
+                      "name": "first_window_utc",
+                      "expression": "`first_window_utc`"
+                    },
+                    {
+                      "name": "last_window_utc",
+                      "expression": "`last_window_utc`"
+                    },
+                    {
+                      "name": "peak_available_exposure",
+                      "expression": "`peak_available_exposure`"
+                    },
+                    {
+                      "name": "peak_future_exposure",
+                      "expression": "`peak_future_exposure`"
+                    },
+                    {
+                      "name": "football_home_game_day",
+                      "expression": "`football_home_game_day`"
+                    },
+                    {
+                      "name": "any_assumed_timing",
+                      "expression": "`any_assumed_timing`"
+                    },
+                    {
+                      "name": "n_windows",
+                      "expression": "`n_windows`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "title": "Event exposure by route \u00b7 DERIVED \u00b7 GPS / SIMULATED prior",
+                "description": "Available table coverage shown explicitly; peak_future_exposure is NULL without future windows. Calendar proximity priors near stops (600 m), not causal effects.",
+                "showTitle": true,
+                "showDescription": true
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "route_short_name",
+                    "title": "Route Short Name",
+                    "type": "string",
+                    "displayAs": "string",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "direction_id",
+                    "title": "Direction Id",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "first_window_utc",
+                    "title": "First Window Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "last_window_utc",
+                    "title": "Last Window Utc",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "peak_available_exposure",
+                    "title": "Peak Available Exposure",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "peak_future_exposure",
+                    "title": "Peak Future Exposure",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "football_home_game_day",
+                    "title": "Football Home Game Day",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 6
+                  },
+                  {
+                    "fieldName": "any_assumed_timing",
+                    "title": "Any Assumed Timing",
+                    "type": "float",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 7
+                  },
+                  {
+                    "fieldName": "n_windows",
+                    "title": "N Windows",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "visible": true,
+                    "order": 8
+                  }
+                ]
+              },
+              "invisibleColumns": [],
+              "itemsPerPage": 10,
+              "condensed": true
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "ntd_trend_2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ntd_trend",
+                  "fields": [
+                    {
+                      "name": "month",
+                      "expression": "`month`"
+                    },
+                    {
+                      "name": "boardings",
+                      "expression": "`boardings`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "month",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "boardings",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "title": "TAMU monthly boardings \u00b7 MEASURED \u00b7 FTA NTD",
+                "description": "Agency 60278, motor bus, directly operated. UPT counts unlinked boardings, not unique students or APC occupancy; historical calibration context.",
+                "showTitle": true,
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    }
+  ]
+}

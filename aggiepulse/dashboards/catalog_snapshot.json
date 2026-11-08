@@ -1,0 +1,2435 @@
+{
+  "transit.bronze.events": [],
+  "transit.bronze.gtfs_calendar_dates": [],
+  "transit.bronze.gtfs_feed_info": [],
+  "transit.bronze.gtfs_routes": [],
+  "transit.bronze.gtfs_shapes": [],
+  "transit.bronze.gtfs_stop_times": [],
+  "transit.bronze.gtfs_stops": [],
+  "transit.bronze.gtfs_trips": [],
+  "transit.bronze.ntd_monthly": [],
+  "transit.bronze.seed_academic_days": [],
+  "transit.bronze.seed_basketball_home": [],
+  "transit.bronze.seed_class_periods": [],
+  "transit.bronze.seed_event_filters": [],
+  "transit.bronze.seed_football_home": [],
+  "transit.bronze.seed_venues": [],
+  "transit.bronze.tripspark_base": [],
+  "transit.bronze.tripspark_vehicles": [],
+  "transit.bronze.weather_nws": [],
+  "transit.bronze.weather_openmeteo": [],
+  "transit.gold.event_exposure": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "window_start",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "event_exposure",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_pre",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_post",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_during",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "football_home_game_day",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_timing_is_assumed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_schedule_is_hindsight",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "unknown_size_events",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minutes_to_next_big_event",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minutes_since_last_big_event",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "venue_type",
+      "type": "STRING"
+    },
+    {
+      "name": "event_geo_method",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.ops_health": [
+    {
+      "name": "run_id",
+      "type": "STRING"
+    },
+    {
+      "name": "checked_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "status",
+      "type": "STRING"
+    },
+    {
+      "name": "service_expected",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "collector_age_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pipeline_lag_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "scoring_age_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "last_collector_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "last_silver_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "last_scoring_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "apc_pings",
+      "type": "LONG"
+    },
+    {
+      "name": "apc_stuck_minutes",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "apc_over_capacity_pings",
+      "type": "LONG"
+    },
+    {
+      "name": "error_message",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.pred_vs_actual": [
+    {
+      "name": "scoring_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "t0",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "horizon_min",
+      "type": "INT"
+    },
+    {
+      "name": "pred_p10",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p50",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p90",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p_crowd",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_uplift",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "top_factors",
+      "type": "ARRAY"
+    },
+    {
+      "name": "model_name",
+      "type": "STRING"
+    },
+    {
+      "name": "model_version",
+      "type": "STRING"
+    },
+    {
+      "name": "feature_staleness_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "training_data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "target_window_start",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "actual_p90_load",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "actual_max_load",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "actual_crowd",
+      "type": "INT"
+    },
+    {
+      "name": "error_p50",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "actual_in_p10_p90",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "actual_n_pings",
+      "type": "INT"
+    },
+    {
+      "name": "actual_data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.predictions": [
+    {
+      "name": "scoring_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "t0",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "horizon_min",
+      "type": "INT"
+    },
+    {
+      "name": "pred_p10",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p50",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p90",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p_crowd",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_uplift",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "top_factors",
+      "type": "ARRAY"
+    },
+    {
+      "name": "model_name",
+      "type": "STRING"
+    },
+    {
+      "name": "model_version",
+      "type": "STRING"
+    },
+    {
+      "name": "feature_staleness_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "training_data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.predictions_latest": [
+    {
+      "name": "scoring_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "t0",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "horizon_min",
+      "type": "INT"
+    },
+    {
+      "name": "pred_p10",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p50",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "pred_p90",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p_crowd",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_uplift",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "top_factors",
+      "type": "ARRAY"
+    },
+    {
+      "name": "model_name",
+      "type": "STRING"
+    },
+    {
+      "name": "model_version",
+      "type": "STRING"
+    },
+    {
+      "name": "feature_staleness_min",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "training_data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.route_dir_15m": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "window_start",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "avg_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p90_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "max_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles",
+      "type": "INT"
+    },
+    {
+      "name": "sched_trips",
+      "type": "INT"
+    },
+    {
+      "name": "service_ratio",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "mean_delay_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "n_pings",
+      "type": "INT"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.route_dir_15m_sim": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "window_start",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "sched_trips",
+      "type": "INT"
+    },
+    {
+      "name": "sim_baseline",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "sim_class_wave",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "sim_event",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "capacity",
+      "type": "LONG"
+    },
+    {
+      "name": "sim_weather",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "sim_noise",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "avg_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles",
+      "type": "INT"
+    },
+    {
+      "name": "service_ratio",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p90_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "max_load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "mean_delay_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "n_pings",
+      "type": "INT"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "sim_clip_adjustment",
+      "type": "DOUBLE"
+    }
+  ],
+  "transit.gold.seasonal_profile": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "day_type",
+      "type": "STRING"
+    },
+    {
+      "name": "slot",
+      "type": "LONG"
+    },
+    {
+      "name": "available_at",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "seasonal_slot_mean",
+      "type": "DOUBLE"
+    }
+  ],
+  "transit.gold.stop_15m": [
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "window_start",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "arrivals",
+      "type": "INT"
+    },
+    {
+      "name": "mean_headway_ratio",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "net_board_proxy_sum",
+      "type": "LONG"
+    },
+    {
+      "name": "max_passing_load",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.gold.training_set": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "t0",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "dow",
+      "type": "LONG"
+    },
+    {
+      "name": "minute_of_day",
+      "type": "LONG"
+    },
+    {
+      "name": "is_class_day",
+      "type": "LONG"
+    },
+    {
+      "name": "is_holiday",
+      "type": "LONG"
+    },
+    {
+      "name": "is_break",
+      "type": "LONG"
+    },
+    {
+      "name": "is_reading_day",
+      "type": "LONG"
+    },
+    {
+      "name": "is_finals",
+      "type": "LONG"
+    },
+    {
+      "name": "week_of_term",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "days_to_finals",
+      "type": "LONG"
+    },
+    {
+      "name": "weekend",
+      "type": "LONG"
+    },
+    {
+      "name": "day_type",
+      "type": "STRING"
+    },
+    {
+      "name": "minutes_to_next_class_start",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minutes_since_last_class_end",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minute_of_day_sin",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minute_of_day_cos",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "slot",
+      "type": "LONG"
+    },
+    {
+      "name": "load_t0",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "service_ratio",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "p90_load_t0",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "load_lag15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "service_ratio_lag15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv_lag15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate_lag15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles_lag15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "load_lag30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "service_ratio_lag30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv_lag30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate_lag30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles_lag30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "load_lag60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "service_ratio_lag60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv_lag60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_rate_lag60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "active_vehicles_lag60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "delta_load_30m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "service_shortfall",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_cv_last30m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "bunching_last30m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "load_same_slot_last_week",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "seasonal_slot_mean",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "precip_now",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "precip_next_hour",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "apparent_c",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "wind_kph",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "weather_is_observed_proxy",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "weather_now_is_observed_proxy",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "weather_forecast_issued_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "rain_onset",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "heat_gt_35c",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_exposure",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_pre",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_post",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_during",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "football_home_game_day",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_timing_is_assumed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "event_schedule_is_hindsight",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "unknown_size_events",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minutes_to_next_big_event",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "minutes_since_last_big_event",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "venue_type",
+      "type": "STRING"
+    },
+    {
+      "name": "event_geo_method",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_count",
+      "type": "LONG"
+    },
+    {
+      "name": "route_length_m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "serves_kyle_field",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "serves_msc",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "scheduled_trips_t0",
+      "type": "LONG"
+    },
+    {
+      "name": "scheduled_frequency_per_hour",
+      "type": "LONG"
+    },
+    {
+      "name": "active_alert",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "closed_stop_count",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "upcoming_alert_60m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "split",
+      "type": "STRING"
+    },
+    {
+      "name": "y_p90load_h15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_crowd_h15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_hwcv_h15",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin_h15",
+      "type": "STRING"
+    },
+    {
+      "name": "y_p90load_h30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_crowd_h30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_hwcv_h30",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin_h30",
+      "type": "STRING"
+    },
+    {
+      "name": "y_p90load_h60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_crowd_h60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "y_hwcv_h60",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin_h60",
+      "type": "STRING"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.academic_days": [
+    {
+      "name": "date",
+      "type": "DATE"
+    },
+    {
+      "name": "term",
+      "type": "STRING"
+    },
+    {
+      "name": "is_class_day",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_holiday",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_break",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_reading_day",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_finals",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_commencement",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "week_of_term",
+      "type": "INT"
+    },
+    {
+      "name": "days_to_finals",
+      "type": "INT"
+    },
+    {
+      "name": "notes",
+      "type": "STRING"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.apc_quality": [
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "service_date",
+      "type": "DATE"
+    },
+    {
+      "name": "pings",
+      "type": "LONG"
+    },
+    {
+      "name": "over_capacity_pings",
+      "type": "LONG"
+    },
+    {
+      "name": "stuck_minutes",
+      "type": "DOUBLE"
+    }
+  ],
+  "transit.silver.class_periods": [
+    {
+      "name": "pattern",
+      "type": "STRING"
+    },
+    {
+      "name": "start_time",
+      "type": "STRING"
+    },
+    {
+      "name": "end_time",
+      "type": "STRING"
+    },
+    {
+      "name": "source",
+      "type": "STRING"
+    },
+    {
+      "name": "campus_region",
+      "type": "STRING"
+    },
+    {
+      "name": "retrieved_date",
+      "type": "STRING"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "start_time_seconds",
+      "type": "INT"
+    },
+    {
+      "name": "end_time_seconds",
+      "type": "INT"
+    }
+  ],
+  "transit.silver.event_log_206b4370_b5cc_48eb_8eba_932dcea5dc95": [
+    {
+      "name": "id",
+      "type": "STRING"
+    },
+    {
+      "name": "sequence",
+      "type": "STRUCT"
+    },
+    {
+      "name": "origin",
+      "type": "STRUCT"
+    },
+    {
+      "name": "timestamp",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "message",
+      "type": "STRING"
+    },
+    {
+      "name": "level",
+      "type": "STRING"
+    },
+    {
+      "name": "maturity_level",
+      "type": "STRING"
+    },
+    {
+      "name": "error",
+      "type": "STRUCT"
+    },
+    {
+      "name": "details",
+      "type": "STRING"
+    },
+    {
+      "name": "event_type",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.event_log_3db97dca_16f4_4d27_88eb_3563ac1749ee": [
+    {
+      "name": "id",
+      "type": "STRING"
+    },
+    {
+      "name": "sequence",
+      "type": "STRUCT"
+    },
+    {
+      "name": "origin",
+      "type": "STRUCT"
+    },
+    {
+      "name": "timestamp",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "message",
+      "type": "STRING"
+    },
+    {
+      "name": "level",
+      "type": "STRING"
+    },
+    {
+      "name": "maturity_level",
+      "type": "STRING"
+    },
+    {
+      "name": "error",
+      "type": "STRUCT"
+    },
+    {
+      "name": "details",
+      "type": "STRING"
+    },
+    {
+      "name": "event_type",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.events": [
+    {
+      "name": "event_id",
+      "type": "STRING"
+    },
+    {
+      "name": "title",
+      "type": "STRING"
+    },
+    {
+      "name": "start_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "end_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "is_all_day",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "location_title",
+      "type": "STRING"
+    },
+    {
+      "name": "venue_key",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "campus",
+      "type": "STRING"
+    },
+    {
+      "name": "category",
+      "type": "STRING"
+    },
+    {
+      "name": "event_types",
+      "type": "ARRAY"
+    },
+    {
+      "name": "audience",
+      "type": "ARRAY"
+    },
+    {
+      "name": "group_title",
+      "type": "STRING"
+    },
+    {
+      "name": "rsvp_total",
+      "type": "INT"
+    },
+    {
+      "name": "is_athletics",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_football_home",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "est_attendance",
+      "type": "INT"
+    },
+    {
+      "name": "significance",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "is_canceled",
+      "type": "BOOLEAN"
+    }
+  ],
+  "transit.silver.events_evaluated": [
+    {
+      "name": "event_id",
+      "type": "STRING"
+    },
+    {
+      "name": "title",
+      "type": "STRING"
+    },
+    {
+      "name": "start_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "end_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "is_all_day",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "location_title",
+      "type": "STRING"
+    },
+    {
+      "name": "venue_key",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "campus",
+      "type": "STRING"
+    },
+    {
+      "name": "category",
+      "type": "STRING"
+    },
+    {
+      "name": "event_types",
+      "type": "ARRAY"
+    },
+    {
+      "name": "audience",
+      "type": "ARRAY"
+    },
+    {
+      "name": "group_title",
+      "type": "STRING"
+    },
+    {
+      "name": "rsvp_total",
+      "type": "INT"
+    },
+    {
+      "name": "is_athletics",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_football_home",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "est_attendance",
+      "type": "INT"
+    },
+    {
+      "name": "significance",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "is_canceled",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "reason",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "_normalization_revision",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.events_filter_stats": [
+    {
+      "name": "reason",
+      "type": "STRING"
+    },
+    {
+      "name": "raw_count",
+      "type": "LONG"
+    },
+    {
+      "name": "kept_count",
+      "type": "LONG"
+    },
+    {
+      "name": "dropped_count",
+      "type": "LONG"
+    }
+  ],
+  "transit.silver.gtfs_calendar_dates": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "service_id",
+      "type": "STRING"
+    },
+    {
+      "name": "date",
+      "type": "DATE"
+    },
+    {
+      "name": "exception_type",
+      "type": "INT"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.gtfs_routes": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "route_id",
+      "type": "STRING"
+    },
+    {
+      "name": "agency_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_long_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_desc",
+      "type": "STRING"
+    },
+    {
+      "name": "route_type",
+      "type": "INT"
+    },
+    {
+      "name": "route_color",
+      "type": "STRING"
+    },
+    {
+      "name": "route_text_color",
+      "type": "STRING"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.gtfs_shapes": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "shape_id",
+      "type": "STRING"
+    },
+    {
+      "name": "shape_pt_lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "shape_pt_lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "shape_pt_sequence",
+      "type": "INT"
+    },
+    {
+      "name": "shape_dist_traveled",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.gtfs_stop_times": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "trip_id",
+      "type": "STRING"
+    },
+    {
+      "name": "arrival_time",
+      "type": "STRING"
+    },
+    {
+      "name": "departure_time",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_sequence",
+      "type": "INT"
+    },
+    {
+      "name": "pickup_type",
+      "type": "INT"
+    },
+    {
+      "name": "drop_off_type",
+      "type": "INT"
+    },
+    {
+      "name": "shape_dist_traveled",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "timepoint",
+      "type": "INT"
+    },
+    {
+      "name": "stop_headsign",
+      "type": "STRING"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "arrival_time_seconds",
+      "type": "INT"
+    },
+    {
+      "name": "departure_time_seconds",
+      "type": "INT"
+    },
+    {
+      "name": "arrival_secs",
+      "type": "INT"
+    },
+    {
+      "name": "departure_secs",
+      "type": "INT"
+    }
+  ],
+  "transit.silver.gtfs_stops": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_code",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_name",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_desc",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "stop_lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "location_type",
+      "type": "INT"
+    },
+    {
+      "name": "wheelchair_boarding",
+      "type": "INT"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.gtfs_trips": [
+    {
+      "name": "feed_version",
+      "type": "STRING"
+    },
+    {
+      "name": "route_id",
+      "type": "STRING"
+    },
+    {
+      "name": "service_id",
+      "type": "STRING"
+    },
+    {
+      "name": "trip_id",
+      "type": "STRING"
+    },
+    {
+      "name": "shape_id",
+      "type": "STRING"
+    },
+    {
+      "name": "trip_headsign",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "block_id",
+      "type": "STRING"
+    },
+    {
+      "name": "_rescued_data",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    }
+  ],
+  "transit.silver.headways": [
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "arrive_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "prev_arrive_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "obs_headway_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "sched_headway_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "headway_ratio",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "is_bunched",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "is_gap",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.ntd_monthly": [
+    {
+      "name": "ntd_id",
+      "type": "STRING"
+    },
+    {
+      "name": "agency",
+      "type": "STRING"
+    },
+    {
+      "name": "mode",
+      "type": "STRING"
+    },
+    {
+      "name": "tos",
+      "type": "STRING"
+    },
+    {
+      "name": "upt",
+      "type": "LONG"
+    },
+    {
+      "name": "vrm",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "vrh",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "voms",
+      "type": "INT"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "month",
+      "type": "DATE"
+    }
+  ],
+  "transit.silver.route_direction_map": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "route_id",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "shape_id",
+      "type": "STRING"
+    },
+    {
+      "name": "median_offset_m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "fit_quality",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "backward_fraction",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "candidate_rank",
+      "type": "INT"
+    },
+    {
+      "name": "is_selected",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "n_pings",
+      "type": "INT"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.schedule_expanded": [
+    {
+      "name": "service_date",
+      "type": "DATE"
+    },
+    {
+      "name": "trip_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "shape_id",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_sequence",
+      "type": "INT"
+    },
+    {
+      "name": "sched_arrival_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "sched_departure_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "is_timepoint",
+      "type": "BOOLEAN"
+    }
+  ],
+  "transit.silver.service_alerts": [
+    {
+      "name": "alert_id",
+      "type": "STRING"
+    },
+    {
+      "name": "start_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "end_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "daily_window",
+      "type": "STRUCT"
+    },
+    {
+      "name": "title",
+      "type": "STRING"
+    },
+    {
+      "name": "text",
+      "type": "STRING"
+    },
+    {
+      "name": "routes",
+      "type": "ARRAY"
+    },
+    {
+      "name": "closed_stops",
+      "type": "ARRAY"
+    }
+  ],
+  "transit.silver.stop_visits": [
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_id",
+      "type": "INT"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "stop_sequence",
+      "type": "INT"
+    },
+    {
+      "name": "arrive_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "depart_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "dwell_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "onboard_before",
+      "type": "INT"
+    },
+    {
+      "name": "onboard_after",
+      "type": "INT"
+    },
+    {
+      "name": "net_board_proxy",
+      "type": "INT"
+    },
+    {
+      "name": "shape_dist_m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "matched_trip_id",
+      "type": "STRING"
+    },
+    {
+      "name": "sched_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "delay_s",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.tripspark_route_mismatches": [
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "reason",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.tripspark_routes": [
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "color",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "destination",
+      "type": "STRING"
+    },
+    {
+      "name": "patterns",
+      "type": "ARRAY"
+    },
+    {
+      "name": "service_interruption_keys",
+      "type": "ARRAY"
+    },
+    {
+      "name": "upcoming_interruption_keys",
+      "type": "ARRAY"
+    },
+    {
+      "name": "route_id",
+      "type": "STRING"
+    },
+    {
+      "name": "route_long_name",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.vehicle_latest": [
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_name",
+      "type": "STRING"
+    },
+    {
+      "name": "ts_gps",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "poll_id",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "speed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "heading",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "onboard",
+      "type": "INT"
+    },
+    {
+      "name": "capacity",
+      "type": "INT"
+    },
+    {
+      "name": "is_extra_trip",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "source_host",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "nearest_stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "nearest_stop_dist_m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "h3_r10",
+      "type": "LONG"
+    },
+    {
+      "name": "apc_flat_minutes",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "apc_stuck",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "apc_over_capacity",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "apc_stuck_minutes",
+      "type": "DOUBLE"
+    }
+  ],
+  "transit.silver.vehicle_pings": [
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_name",
+      "type": "STRING"
+    },
+    {
+      "name": "ts_gps",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "poll_id",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "speed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "heading",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "onboard",
+      "type": "INT"
+    },
+    {
+      "name": "capacity",
+      "type": "INT"
+    },
+    {
+      "name": "is_extra_trip",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "source_host",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "nearest_stop_id",
+      "type": "STRING"
+    },
+    {
+      "name": "nearest_stop_dist_m",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "h3_r10",
+      "type": "LONG"
+    },
+    {
+      "name": "apc_flat_minutes",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "apc_stuck",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "apc_over_capacity",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "apc_stuck_minutes",
+      "type": "DOUBLE"
+    }
+  ],
+  "transit.silver.vehicle_pings_candidates": [
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_name",
+      "type": "STRING"
+    },
+    {
+      "name": "ts_gps",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "poll_id",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "speed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "heading",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "onboard",
+      "type": "INT"
+    },
+    {
+      "name": "capacity",
+      "type": "INT"
+    },
+    {
+      "name": "is_extra_trip",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "source_host",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "_normalization_revision",
+      "type": "STRING"
+    }
+  ],
+  "transit.silver.vehicle_pings_quarantine": [
+    {
+      "name": "route_key",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_key",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_id",
+      "type": "STRING"
+    },
+    {
+      "name": "vehicle_name",
+      "type": "STRING"
+    },
+    {
+      "name": "ts_gps",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "ingest_ts",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "poll_id",
+      "type": "STRING"
+    },
+    {
+      "name": "lat",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "lon",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "speed",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "heading",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "onboard",
+      "type": "INT"
+    },
+    {
+      "name": "capacity",
+      "type": "INT"
+    },
+    {
+      "name": "is_extra_trip",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "source_host",
+      "type": "STRING"
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING"
+    },
+    {
+      "name": "route_short_name",
+      "type": "STRING"
+    },
+    {
+      "name": "route_name",
+      "type": "STRING"
+    },
+    {
+      "name": "direction_name",
+      "type": "STRING"
+    },
+    {
+      "name": "load_factor",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "data_origin",
+      "type": "STRING"
+    },
+    {
+      "name": "_normalization_revision",
+      "type": "STRING"
+    },
+    {
+      "name": "failed_expectations",
+      "type": "ARRAY"
+    }
+  ],
+  "transit.silver.weather_hourly": [
+    {
+      "name": "ts_hour",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "temp_c",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "apparent_c",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "precip_mm",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "rain_mm",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "wind_kph",
+      "type": "DOUBLE"
+    },
+    {
+      "name": "weather_code",
+      "type": "INT"
+    },
+    {
+      "name": "source",
+      "type": "STRING"
+    },
+    {
+      "name": "is_forecast",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "forecast_issued_ts",
+      "type": "TIMESTAMP"
+    }
+  ]
+}

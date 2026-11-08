@@ -1,0 +1,2314 @@
+{
+  "space": {
+    "space_id": "01f1db093b021033aabbdb939c631a81",
+    "url": "https://dbc-595c228e-76f6.cloud.databricks.com/genie/rooms/01f1db093b021033aabbdb939c631a81?w=7474654155800707",
+    "managed_by": "resources/genie.yml"
+  },
+  "tested_utc": "2026-11-08T00:14:37.964323+00:00",
+  "answers": [
+    {
+      "question": "Which events next week are near Kyle Field?",
+      "message": {
+        "attachments": [
+          {
+            "attachment_id": "01f1db0968131c58b09223dc02346a8d",
+            "query": {
+              "description": "You want to see the events happening next week that are located within 600 meters of Kyle Field.",
+              "query": "SELECT `title`, `location_title`, `venue_key`,\n  from_utc_timestamp(`start_ts`, 'America/Chicago') AS `starts_local`,\n  `significance`, `est_attendance`,\n  2 * 6371000 * asin(sqrt(\n    pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) +\n    cos(radians(30.6102)) * cos(radians(`lat`)) *\n    pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2)\n  )) AS `distance_m`\nFROM `transit`.`silver`.`events`\nWHERE `is_canceled` = false\n  AND `lat` IS NOT NULL\n  AND `lon` IS NOT NULL\n  AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7)\n  AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 14)\n  AND 2 * 6371000 * asin(sqrt(\n    pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) +\n    cos(radians(30.6102)) * cos(radians(`lat`)) *\n    pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2)\n  )) <= 600\nORDER BY `start_ts`, `significance` DESC",
+              "query_result_metadata": {
+                "row_count": 47
+              },
+              "statement_id": "01f1db09-6820-1c20-a7c3-3dcd842329ff",
+              "thoughts": [
+                {
+                  "content": "You want to see the events happening next week that are located within 600 meters of Kyle Field.",
+                  "thought_type": "THOUGHT_TYPE_DESCRIPTION"
+                },
+                {
+                  "content": "- transit.silver.events",
+                  "thought_type": "THOUGHT_TYPE_DATA_SOURCING"
+                },
+                {
+                  "content": "- Filter events that are not canceled and have valid latitude and longitude.\n- Limit events to those starting in the local calendar week after the current week (next week).\n- Calculate the distance from each event to Kyle Field using latitude and longitude.\n- Select events where this distance is 600 meters or less.\n- Order the results by event start time and significance, showing the most significant events first.",
+                  "thought_type": "THOUGHT_TYPE_STEPS"
+                }
+              ]
+            }
+          },
+          {
+            "attachment_id": "01f1db096b65138a905a568fa1a6485e",
+            "suggested_questions": {
+              "questions": [
+                "What are the busiest bus routes during events near Kyle Field next week?",
+                "What is the predicted crowding probability for bus routes near Kyle Field during next week's events?",
+                "Which venues near Kyle Field have the most events scheduled for next week?"
+              ]
+            }
+          },
+          {
+            "text": {
+              "content": "Examples of events next week near Kyle Field include:\n- **Aggie Football - Black Out** at **Kyle Field** on **2026-11-14 00:00** local, about **24 m** away\n- **Piece by Piece: The Legacy of Aggie Moms** at **Forsyth Galleries** on **2026-11-10 09:00** local, about **224 m** away\n- **Transit Fall Service** at **Memorial Student Center** on **2026-11-09 00:00** local, about **253 m** away\n- **Inherited Landscapes** at **J. Wayne Stark Galleries** on **2026-11-10 09:00** local, about **287 m** away\n- **AI as a Research Tool Tutorial Series: Data Extraction, Structuring, and Parsing** at **Rudder Tower** on **2026-11-09 11:00** local, about **341 m** away",
+              "purpose": "TEXT_ATTACHMENT_PURPOSE_ANSWER"
+            }
+          },
+          {
+            "attachment_id": "01f1db096b821cf4b46452278fabdecb",
+            "viz": {
+              "query_attachment_id": "01f1db0968131c58b09223dc02346a8d"
+            }
+          }
+        ],
+        "content": "Which events next week are near Kyle Field?",
+        "conversation_id": "01f1db0962b61ff785c45322d43342c7",
+        "created_timestamp": 1794096879204,
+        "id": "01f1db096348141b86e175c6e6e59b13",
+        "last_updated_timestamp": 1794096896886,
+        "message_id": "01f1db096348141b86e175c6e6e59b13",
+        "query_result": {
+          "row_count": 47,
+          "statement_id": "01f1db09-6820-1c20-a7c3-3dcd842329ff"
+        },
+        "space_id": "01f1db093b021033aabbdb939c631a81",
+        "status": "COMPLETED",
+        "user_id": 76339284746693
+      },
+      "answer_text": [
+        "Examples of events next week near Kyle Field include:\n- **Aggie Football - Black Out** at **Kyle Field** on **2026-11-14 00:00** local, about **24 m** away\n- **Piece by Piece: The Legacy of Aggie Moms** at **Forsyth Galleries** on **2026-11-10 09:00** local, about **224 m** away\n- **Transit Fall Service** at **Memorial Student Center** on **2026-11-09 00:00** local, about **253 m** away\n- **Inherited Landscapes** at **J. Wayne Stark Galleries** on **2026-11-10 09:00** local, about **287 m** away\n- **AI as a Research Tool Tutorial Series: Data Extraction, Structuring, and Parsing** at **Rudder Tower** on **2026-11-09 11:00** local, about **341 m** away"
+      ],
+      "queries": [
+        {
+          "sql": "SELECT `title`, `location_title`, `venue_key`,\n  from_utc_timestamp(`start_ts`, 'America/Chicago') AS `starts_local`,\n  `significance`, `est_attendance`,\n  2 * 6371000 * asin(sqrt(\n    pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) +\n    cos(radians(30.6102)) * cos(radians(`lat`)) *\n    pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2)\n  )) AS `distance_m`\nFROM `transit`.`silver`.`events`\nWHERE `is_canceled` = false\n  AND `lat` IS NOT NULL\n  AND `lon` IS NOT NULL\n  AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7)\n  AND to_date(from_utc_timestamp(`start_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 14)\n  AND 2 * 6371000 * asin(sqrt(\n    pow(sin(try_divide(radians(`lat` - 30.6102),2)), 2) +\n    cos(radians(30.6102)) * cos(radians(`lat`)) *\n    pow(sin(try_divide(radians(`lon` + 96.3404),2)), 2)\n  )) <= 600\nORDER BY `start_ts`, `significance` DESC",
+          "description": "You want to see the events happening next week that are located within 600 meters of Kyle Field.",
+          "recomputed_result": [
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-09T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "GPSA Law School Fair",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-09T10:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "AI as a Research Tool Tutorial Series: Data Extraction, Structuring, and Parsing",
+              "location_title": "Rudder Tower",
+              "venue_key": "rudder_tower",
+              "starts_local": "2026-11-09T11:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-10T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Inherited Landscapes",
+              "location_title": "J. Wayne Stark Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-10T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "287.3680755516858"
+            },
+            {
+              "title": "Piece by Piece: The Legacy of Aggie Moms",
+              "location_title": "Forsyth Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-10T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "223.93988251260086"
+            },
+            {
+              "title": "Here for Good: Celebrating 150 Years of Texas A&M University",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-10T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Academic Success & Service: Lunch & Learn with OSEP",
+              "location_title": "Rudder Tower",
+              "venue_key": "rudder_tower",
+              "starts_local": "2026-11-10T11:30:00.000Z",
+              "significance": "6.624987703124491",
+              "est_attendance": "18",
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "Hope Dealers Meeting of Alcoholics Anonymous",
+              "location_title": "Rudder Tower",
+              "venue_key": "rudder_tower",
+              "starts_local": "2026-11-10T14:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "MS Business: Information Session",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-10T19:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+              "location_title": "Rudder Auditorium",
+              "venue_key": "rudder_auditorium",
+              "starts_local": "2026-11-10T19:30:00.000Z",
+              "significance": "21.071478735525904",
+              "est_attendance": "2450",
+              "distance_m": "348.0646093417728"
+            },
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-11T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Aggie One Stop Pop-Up Advising (Memorial Student Center)",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-11T08:30:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Inherited Landscapes",
+              "location_title": "J. Wayne Stark Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-11T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "287.3680755516858"
+            },
+            {
+              "title": "Piece by Piece: The Legacy of Aggie Moms",
+              "location_title": "Forsyth Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-11T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "223.93988251260086"
+            },
+            {
+              "title": "Off Campus Community Luncheon",
+              "location_title": "Student Services Building",
+              "venue_key": null,
+              "starts_local": "2026-11-11T11:45:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "429.83528113723753"
+            },
+            {
+              "title": "Workshop: \u201cLeading with Integrity: Giving and Receiving Criticism\u201d",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-11T12:40:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Workshop: \u201cAggie Core Values as a Toolkit for Enhancing Your Resilience\u201d",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-11T13:50:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Lease It or Leave It",
+              "location_title": "Student Services Building",
+              "venue_key": null,
+              "starts_local": "2026-11-11T15:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "429.83528113723753"
+            },
+            {
+              "title": "Workshop: \u201cWhen Loyalties Collide: What Does It Mean to Lead in an Era of Conflicting Loyalties?\u201d",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-11T15:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Coffeehouse",
+              "location_title": "Innovative Learning Classroom Building",
+              "venue_key": null,
+              "starts_local": "2026-11-11T17:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "420.86363974301634"
+            },
+            {
+              "title": "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+              "location_title": "Rudder Auditorium",
+              "venue_key": "rudder_auditorium",
+              "starts_local": "2026-11-11T19:30:00.000Z",
+              "significance": "21.071478735525904",
+              "est_attendance": "2450",
+              "distance_m": "348.0646093417728"
+            },
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-12T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-12T08:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-12T08:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-12T08:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "Inherited Landscapes",
+              "location_title": "J. Wayne Stark Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-12T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "287.3680755516858"
+            },
+            {
+              "title": "Piece by Piece: The Legacy of Aggie Moms",
+              "location_title": "Forsyth Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-12T09:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "223.93988251260086"
+            },
+            {
+              "title": "Out of the Haze Marijuana Anonymous",
+              "location_title": "Rudder Tower",
+              "venue_key": "rudder_tower",
+              "starts_local": "2026-11-12T13:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "SWAC Zen Den",
+              "location_title": "Student Services Building",
+              "venue_key": null,
+              "starts_local": "2026-11-12T14:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "429.83528113723753"
+            },
+            {
+              "title": "Let\u2019s Talk: Multicultural Services",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-12T15:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-13T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-13T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-13T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "CMIS Undergraduate Case Competition",
+              "location_title": "MSC",
+              "venue_key": "msc",
+              "starts_local": "2026-11-13T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "341.48082604574535"
+            },
+            {
+              "title": "Aggie Football - Black Out",
+              "location_title": "Kyle Field",
+              "venue_key": "kyle_field",
+              "starts_local": "2026-11-14T00:00:00.000Z",
+              "significance": "43.274619009268704",
+              "est_attendance": "102733",
+              "distance_m": "24.057723033991792"
+            },
+            {
+              "title": "Transit Gameday Bus Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-14T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Fueling a Force for Good: Celebrating Freedom. Honoring a Legacy of Service.",
+              "location_title": "Fan Zone",
+              "venue_key": null,
+              "starts_local": "2026-11-14T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "148.2532154648764"
+            },
+            {
+              "title": "SPH Football Tailgate",
+              "location_title": "Aggie Park",
+              "venue_key": "aggie_park",
+              "starts_local": "2026-11-14T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "260.2359026468072"
+            },
+            {
+              "title": "Piece by Piece: The Legacy of Aggie Moms",
+              "location_title": "Forsyth Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-14T12:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "223.93988251260086"
+            },
+            {
+              "title": "Here for Good: Celebrating 150 Years of Texas A&M University",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-14T12:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Inherited Landscapes",
+              "location_title": "J. Wayne Stark Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-14T12:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "287.3680755516858"
+            },
+            {
+              "title": "Transit Fall Service",
+              "location_title": "Memorial Student Center",
+              "venue_key": "msc",
+              "starts_local": "2026-11-15T00:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "252.7502128082194"
+            },
+            {
+              "title": "Piece by Piece: The Legacy of Aggie Moms",
+              "location_title": "Forsyth Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-15T12:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "223.93988251260086"
+            },
+            {
+              "title": "Inherited Landscapes",
+              "location_title": "J. Wayne Stark Galleries",
+              "venue_key": null,
+              "starts_local": "2026-11-15T12:00:00.000Z",
+              "significance": null,
+              "est_attendance": null,
+              "distance_m": "287.3680755516858"
+            },
+            {
+              "title": "University Band Ensembles in Concert",
+              "location_title": "Rudder Theatre",
+              "venue_key": "rudder_theatre",
+              "starts_local": "2026-11-15T14:00:00.000Z",
+              "significance": "17.877795259763165",
+              "est_attendance": "750",
+              "distance_m": "357.07776792436226"
+            },
+            {
+              "title": "University Orchestra Ensembles in Concert",
+              "location_title": "Rudder Auditorium",
+              "venue_key": "rudder_auditorium",
+              "starts_local": "2026-11-15T17:00:00.000Z",
+              "significance": "21.071478735525904",
+              "est_attendance": "2450",
+              "distance_m": "348.0646093417728"
+            }
+          ],
+          "conversation_result": {
+            "statement_response": {
+              "manifest": {
+                "chunks": [
+                  {
+                    "byte_count": 5816,
+                    "chunk_index": 0,
+                    "row_count": 47,
+                    "row_offset": 0
+                  }
+                ],
+                "format": "JSON_ARRAY",
+                "schema": {
+                  "column_count": 7,
+                  "columns": [
+                    {
+                      "name": "title",
+                      "position": 0,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "location_title",
+                      "position": 1,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "venue_key",
+                      "position": 2,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "starts_local",
+                      "position": 3,
+                      "type_name": "TIMESTAMP",
+                      "type_text": "TIMESTAMP"
+                    },
+                    {
+                      "name": "significance",
+                      "position": 4,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    },
+                    {
+                      "name": "est_attendance",
+                      "position": 5,
+                      "type_name": "INT",
+                      "type_text": "INT"
+                    },
+                    {
+                      "name": "distance_m",
+                      "position": 6,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    }
+                  ]
+                },
+                "total_byte_count": 5816,
+                "total_chunk_count": 1,
+                "total_row_count": 47,
+                "truncated": false
+              },
+              "result": {
+                "chunk_index": 0,
+                "data_array": [
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-09T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "GPSA Law School Fair",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-09T10:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "AI as a Research Tool Tutorial Series: Data Extraction, Structuring, and Parsing",
+                    "Rudder Tower",
+                    "rudder_tower",
+                    "2026-11-09T11:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-10T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Inherited Landscapes",
+                    "J. Wayne Stark Galleries",
+                    null,
+                    "2026-11-10T09:00:00.000Z",
+                    null,
+                    null,
+                    "287.3680755516858"
+                  ],
+                  [
+                    "Piece by Piece: The Legacy of Aggie Moms",
+                    "Forsyth Galleries",
+                    null,
+                    "2026-11-10T09:00:00.000Z",
+                    null,
+                    null,
+                    "223.93988251260086"
+                  ],
+                  [
+                    "Here for Good: Celebrating 150 Years of Texas A&M University",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-10T09:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Academic Success & Service: Lunch & Learn with OSEP",
+                    "Rudder Tower",
+                    "rudder_tower",
+                    "2026-11-10T11:30:00.000Z",
+                    "6.624987703124491",
+                    "18",
+                    "341.48082604574535"
+                  ],
+                  [
+                    "Hope Dealers Meeting of Alcoholics Anonymous",
+                    "Rudder Tower",
+                    "rudder_tower",
+                    "2026-11-10T14:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "MS Business: Information Session",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-10T19:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+                    "Rudder Auditorium",
+                    "rudder_auditorium",
+                    "2026-11-10T19:30:00.000Z",
+                    "21.071478735525904",
+                    "2450",
+                    "348.0646093417728"
+                  ],
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-11T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Aggie One Stop Pop-Up Advising (Memorial Student Center)",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-11T08:30:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Inherited Landscapes",
+                    "J. Wayne Stark Galleries",
+                    null,
+                    "2026-11-11T09:00:00.000Z",
+                    null,
+                    null,
+                    "287.3680755516858"
+                  ],
+                  [
+                    "Piece by Piece: The Legacy of Aggie Moms",
+                    "Forsyth Galleries",
+                    null,
+                    "2026-11-11T09:00:00.000Z",
+                    null,
+                    null,
+                    "223.93988251260086"
+                  ],
+                  [
+                    "Off Campus Community Luncheon",
+                    "Student Services Building",
+                    null,
+                    "2026-11-11T11:45:00.000Z",
+                    null,
+                    null,
+                    "429.83528113723753"
+                  ],
+                  [
+                    "Workshop: \u201cLeading with Integrity: Giving and Receiving Criticism\u201d",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-11T12:40:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Workshop: \u201cAggie Core Values as a Toolkit for Enhancing Your Resilience\u201d",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-11T13:50:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Lease It or Leave It",
+                    "Student Services Building",
+                    null,
+                    "2026-11-11T15:00:00.000Z",
+                    null,
+                    null,
+                    "429.83528113723753"
+                  ],
+                  [
+                    "Workshop: \u201cWhen Loyalties Collide: What Does It Mean to Lead in an Era of Conflicting Loyalties?\u201d",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-11T15:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Coffeehouse",
+                    "Innovative Learning Classroom Building",
+                    null,
+                    "2026-11-11T17:00:00.000Z",
+                    null,
+                    null,
+                    "420.86363974301634"
+                  ],
+                  [
+                    "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+                    "Rudder Auditorium",
+                    "rudder_auditorium",
+                    "2026-11-11T19:30:00.000Z",
+                    "21.071478735525904",
+                    "2450",
+                    "348.0646093417728"
+                  ],
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-12T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-12T08:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-12T08:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-12T08:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "Inherited Landscapes",
+                    "J. Wayne Stark Galleries",
+                    null,
+                    "2026-11-12T09:00:00.000Z",
+                    null,
+                    null,
+                    "287.3680755516858"
+                  ],
+                  [
+                    "Piece by Piece: The Legacy of Aggie Moms",
+                    "Forsyth Galleries",
+                    null,
+                    "2026-11-12T09:00:00.000Z",
+                    null,
+                    null,
+                    "223.93988251260086"
+                  ],
+                  [
+                    "Out of the Haze Marijuana Anonymous",
+                    "Rudder Tower",
+                    "rudder_tower",
+                    "2026-11-12T13:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "SWAC Zen Den",
+                    "Student Services Building",
+                    null,
+                    "2026-11-12T14:00:00.000Z",
+                    null,
+                    null,
+                    "429.83528113723753"
+                  ],
+                  [
+                    "Let\u2019s Talk: Multicultural Services",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-12T15:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-13T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-13T00:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-13T00:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "CMIS Undergraduate Case Competition",
+                    "MSC",
+                    "msc",
+                    "2026-11-13T00:00:00.000Z",
+                    null,
+                    null,
+                    "341.48082604574535"
+                  ],
+                  [
+                    "Aggie Football - Black Out",
+                    "Kyle Field",
+                    "kyle_field",
+                    "2026-11-14T00:00:00.000Z",
+                    "43.274619009268704",
+                    "102733",
+                    "24.057723033991792"
+                  ],
+                  [
+                    "Transit Gameday Bus Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-14T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Fueling a Force for Good: Celebrating Freedom. Honoring a Legacy of Service.",
+                    "Fan Zone",
+                    null,
+                    "2026-11-14T00:00:00.000Z",
+                    null,
+                    null,
+                    "148.2532154648764"
+                  ],
+                  [
+                    "SPH Football Tailgate",
+                    "Aggie Park",
+                    "aggie_park",
+                    "2026-11-14T00:00:00.000Z",
+                    null,
+                    null,
+                    "260.2359026468072"
+                  ],
+                  [
+                    "Piece by Piece: The Legacy of Aggie Moms",
+                    "Forsyth Galleries",
+                    null,
+                    "2026-11-14T12:00:00.000Z",
+                    null,
+                    null,
+                    "223.93988251260086"
+                  ],
+                  [
+                    "Here for Good: Celebrating 150 Years of Texas A&M University",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-14T12:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Inherited Landscapes",
+                    "J. Wayne Stark Galleries",
+                    null,
+                    "2026-11-14T12:00:00.000Z",
+                    null,
+                    null,
+                    "287.3680755516858"
+                  ],
+                  [
+                    "Transit Fall Service",
+                    "Memorial Student Center",
+                    "msc",
+                    "2026-11-15T00:00:00.000Z",
+                    null,
+                    null,
+                    "252.7502128082194"
+                  ],
+                  [
+                    "Piece by Piece: The Legacy of Aggie Moms",
+                    "Forsyth Galleries",
+                    null,
+                    "2026-11-15T12:00:00.000Z",
+                    null,
+                    null,
+                    "223.93988251260086"
+                  ],
+                  [
+                    "Inherited Landscapes",
+                    "J. Wayne Stark Galleries",
+                    null,
+                    "2026-11-15T12:00:00.000Z",
+                    null,
+                    null,
+                    "287.3680755516858"
+                  ],
+                  [
+                    "University Band Ensembles in Concert",
+                    "Rudder Theatre",
+                    "rudder_theatre",
+                    "2026-11-15T14:00:00.000Z",
+                    "17.877795259763165",
+                    "750",
+                    "357.07776792436226"
+                  ],
+                  [
+                    "University Orchestra Ensembles in Concert",
+                    "Rudder Auditorium",
+                    "rudder_auditorium",
+                    "2026-11-15T17:00:00.000Z",
+                    "21.071478735525904",
+                    "2450",
+                    "348.0646093417728"
+                  ]
+                ],
+                "row_count": 47,
+                "row_offset": 0
+              },
+              "statement_id": "01f1db09-6820-1c20-a7c3-3dcd842329ff",
+              "status": {
+                "state": "SUCCEEDED"
+              }
+            }
+          }
+        }
+      ],
+      "correct": null,
+      "trusted_sql": "SELECT title,location_title,venue_key,\n from_utc_timestamp(start_ts,'America/Chicago') AS starts_local,\n significance,est_attendance,\n 2*6371000*asin(sqrt(pow(sin(radians(lat-30.6102)/2),2)+cos(radians(30.6102))*cos(radians(lat))*pow(sin(radians(lon+96.3404)/2),2))) AS distance_m\nFROM transit.silver.events\nWHERE NOT is_canceled AND lat IS NOT NULL AND lon IS NOT NULL\n AND to_date(from_utc_timestamp(start_ts,'America/Chicago')) >=\n date_add(to_date(date_trunc('week',from_utc_timestamp(current_timestamp(),'America/Chicago'))),7)\n AND to_date(from_utc_timestamp(start_ts,'America/Chicago')) <\n date_add(to_date(date_trunc('week',from_utc_timestamp(current_timestamp(),'America/Chicago'))),14)\n AND 2*6371000*asin(sqrt(pow(sin(radians(lat-30.6102)/2),2)+cos(radians(30.6102))*cos(radians(lat))*pow(sin(radians(lon+96.3404)/2),2))) <=600\nORDER BY start_ts,significance DESC",
+      "trusted_result": [
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-09T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "GPSA Law School Fair",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-09T10:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "AI as a Research Tool Tutorial Series: Data Extraction, Structuring, and Parsing",
+          "location_title": "Rudder Tower",
+          "venue_key": "rudder_tower",
+          "starts_local": "2026-11-09T11:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-10T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Inherited Landscapes",
+          "location_title": "J. Wayne Stark Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-10T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "287.3680755516858"
+        },
+        {
+          "title": "Piece by Piece: The Legacy of Aggie Moms",
+          "location_title": "Forsyth Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-10T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "223.93988251260086"
+        },
+        {
+          "title": "Here for Good: Celebrating 150 Years of Texas A&M University",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-10T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Academic Success & Service: Lunch & Learn with OSEP",
+          "location_title": "Rudder Tower",
+          "venue_key": "rudder_tower",
+          "starts_local": "2026-11-10T11:30:00.000Z",
+          "significance": "6.624987703124491",
+          "est_attendance": "18",
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "Hope Dealers Meeting of Alcoholics Anonymous",
+          "location_title": "Rudder Tower",
+          "venue_key": "rudder_tower",
+          "starts_local": "2026-11-10T14:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "MS Business: Information Session",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-10T19:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+          "location_title": "Rudder Auditorium",
+          "venue_key": "rudder_auditorium",
+          "starts_local": "2026-11-10T19:30:00.000Z",
+          "significance": "21.071478735525904",
+          "est_attendance": "2450",
+          "distance_m": "348.0646093417728"
+        },
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-11T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Aggie One Stop Pop-Up Advising (Memorial Student Center)",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-11T08:30:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Inherited Landscapes",
+          "location_title": "J. Wayne Stark Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-11T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "287.3680755516858"
+        },
+        {
+          "title": "Piece by Piece: The Legacy of Aggie Moms",
+          "location_title": "Forsyth Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-11T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "223.93988251260086"
+        },
+        {
+          "title": "Off Campus Community Luncheon",
+          "location_title": "Student Services Building",
+          "venue_key": null,
+          "starts_local": "2026-11-11T11:45:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "429.83528113723753"
+        },
+        {
+          "title": "Workshop: \u201cLeading with Integrity: Giving and Receiving Criticism\u201d",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-11T12:40:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Workshop: \u201cAggie Core Values as a Toolkit for Enhancing Your Resilience\u201d",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-11T13:50:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Lease It or Leave It",
+          "location_title": "Student Services Building",
+          "venue_key": null,
+          "starts_local": "2026-11-11T15:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "429.83528113723753"
+        },
+        {
+          "title": "Workshop: \u201cWhen Loyalties Collide: What Does It Mean to Lead in an Era of Conflicting Loyalties?\u201d",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-11T15:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Coffeehouse",
+          "location_title": "Innovative Learning Classroom Building",
+          "venue_key": null,
+          "starts_local": "2026-11-11T17:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "420.86363974301634"
+        },
+        {
+          "title": "OPAS presents A Beautiful Noise: The Neil Diamond Musical",
+          "location_title": "Rudder Auditorium",
+          "venue_key": "rudder_auditorium",
+          "starts_local": "2026-11-11T19:30:00.000Z",
+          "significance": "21.071478735525904",
+          "est_attendance": "2450",
+          "distance_m": "348.0646093417728"
+        },
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-12T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-12T08:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-12T08:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-12T08:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "Inherited Landscapes",
+          "location_title": "J. Wayne Stark Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-12T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "287.3680755516858"
+        },
+        {
+          "title": "Piece by Piece: The Legacy of Aggie Moms",
+          "location_title": "Forsyth Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-12T09:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "223.93988251260086"
+        },
+        {
+          "title": "Out of the Haze Marijuana Anonymous",
+          "location_title": "Rudder Tower",
+          "venue_key": "rudder_tower",
+          "starts_local": "2026-11-12T13:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "SWAC Zen Den",
+          "location_title": "Student Services Building",
+          "venue_key": null,
+          "starts_local": "2026-11-12T14:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "429.83528113723753"
+        },
+        {
+          "title": "Let\u2019s Talk: Multicultural Services",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-12T15:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-13T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-13T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-13T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "CMIS Undergraduate Case Competition",
+          "location_title": "MSC",
+          "venue_key": "msc",
+          "starts_local": "2026-11-13T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "341.48082604574535"
+        },
+        {
+          "title": "Aggie Football - Black Out",
+          "location_title": "Kyle Field",
+          "venue_key": "kyle_field",
+          "starts_local": "2026-11-14T00:00:00.000Z",
+          "significance": "43.274619009268704",
+          "est_attendance": "102733",
+          "distance_m": "24.057723033991792"
+        },
+        {
+          "title": "Transit Gameday Bus Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-14T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Fueling a Force for Good: Celebrating Freedom. Honoring a Legacy of Service.",
+          "location_title": "Fan Zone",
+          "venue_key": null,
+          "starts_local": "2026-11-14T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "148.2532154648764"
+        },
+        {
+          "title": "SPH Football Tailgate",
+          "location_title": "Aggie Park",
+          "venue_key": "aggie_park",
+          "starts_local": "2026-11-14T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "260.2359026468072"
+        },
+        {
+          "title": "Piece by Piece: The Legacy of Aggie Moms",
+          "location_title": "Forsyth Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-14T12:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "223.93988251260086"
+        },
+        {
+          "title": "Here for Good: Celebrating 150 Years of Texas A&M University",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-14T12:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Inherited Landscapes",
+          "location_title": "J. Wayne Stark Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-14T12:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "287.3680755516858"
+        },
+        {
+          "title": "Transit Fall Service",
+          "location_title": "Memorial Student Center",
+          "venue_key": "msc",
+          "starts_local": "2026-11-15T00:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "252.7502128082194"
+        },
+        {
+          "title": "Piece by Piece: The Legacy of Aggie Moms",
+          "location_title": "Forsyth Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-15T12:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "223.93988251260086"
+        },
+        {
+          "title": "Inherited Landscapes",
+          "location_title": "J. Wayne Stark Galleries",
+          "venue_key": null,
+          "starts_local": "2026-11-15T12:00:00.000Z",
+          "significance": null,
+          "est_attendance": null,
+          "distance_m": "287.3680755516858"
+        },
+        {
+          "title": "University Band Ensembles in Concert",
+          "location_title": "Rudder Theatre",
+          "venue_key": "rudder_theatre",
+          "starts_local": "2026-11-15T14:00:00.000Z",
+          "significance": "17.877795259763165",
+          "est_attendance": "750",
+          "distance_m": "357.07776792436226"
+        },
+        {
+          "title": "University Orchestra Ensembles in Concert",
+          "location_title": "Rudder Auditorium",
+          "venue_key": "rudder_auditorium",
+          "starts_local": "2026-11-15T17:00:00.000Z",
+          "significance": "21.071478735525904",
+          "est_attendance": "2450",
+          "distance_m": "348.0646093417728"
+        }
+      ]
+    },
+    {
+      "question": "What is the model's 30-minute MAE on observed data?",
+      "message": {
+        "attachments": [
+          {
+            "attachment_id": "01f1db0967731447bc62cf0431dd047e",
+            "query": {
+              "description": "You want to see the average error of the model's 30-minute load factor predictions compared to actual observed load factors, broken down by route, model name, and model version. The results also show how often the actual load falls within the model's predicted range.",
+              "query": "WITH `verified` AS (\n  SELECT *,\n         row_number() OVER (\n           PARTITION BY `t0`, `route_short_name`, `direction_id`, `horizon_min`, `actual_data_origin`\n           ORDER BY `scoring_ts` DESC\n         ) AS `rn`\n  FROM `transit`.`gold`.`pred_vs_actual`\n  WHERE `actual_p90_load` IS NOT NULL\n    AND `actual_data_origin` IN ('observed', 'simulated')\n),\n`latest` AS (\n  SELECT *\n  FROM `verified`\n  WHERE `rn` = 1\n)\nSELECT\n  `route_short_name`,\n  `model_name`,\n  `model_version`,\n  COUNT(*) AS `n`,\n  AVG(ABS(`pred_p50` - `actual_p90_load`)) AS `mae_load_factor`,\n  AVG(CAST(`actual_in_p10_p90` AS DOUBLE)) AS `interval_coverage`\nFROM `latest`\nWHERE `horizon_min` = 30\n  AND `actual_data_origin` = 'observed'\n  AND `route_short_name` IS NOT NULL\nGROUP BY `route_short_name`, `model_name`, `model_version`\nORDER BY `route_short_name`",
+              "query_result_metadata": {
+                "row_count": 13
+              },
+              "statement_id": "01f1db09-677c-1355-b2a8-1f8d4311ac4a",
+              "thoughts": [
+                {
+                  "content": "You want to see the average error of the model's 30-minute load factor predictions compared to actual observed load factors, broken down by route, model name, and model version. The results also show how often the actual load falls within the model's predicted range.",
+                  "thought_type": "THOUGHT_TYPE_DESCRIPTION"
+                },
+                {
+                  "content": "- transit.gold.pred_vs_actual",
+                  "thought_type": "THOUGHT_TYPE_DATA_SOURCING"
+                },
+                {
+                  "content": "- Filter to rows with non-null actual load and actual data origin as observed or simulated.\n- Keep only the latest scoring per combination of reference time, route, direction, horizon, and actual data origin.\n- Focus on 30-minute forecast horizon and observed actual data origin.\n- Group results by route, model name, and model version.\n- Calculate the count of predictions, average absolute error between predicted median and actual load, and average coverage of actual load within predicted interval.",
+                  "thought_type": "THOUGHT_TYPE_STEPS"
+                }
+              ]
+            }
+          },
+          {
+            "attachment_id": "01f1db096a24117e8a03625c648d5296",
+            "suggested_questions": {
+              "questions": [
+                "What is the model's 15-minute MAE on observed data?",
+                "What is the model's 60-minute MAE on observed data?",
+                "What is the average 30-minute MAE across all routes on observed data?"
+              ]
+            }
+          },
+          {
+            "text": {
+              "content": "For **observed 30-minute forecasts**, the results shown are **by route**, not one overall model-wide MAE. Examples include:\n- **31**: MAE **0.0015** (n=**1**)\n- **03-05**: MAE **0.0038** (n=**2**)\n- **22**: MAE **0.0229** (n=**2**)\n- **40-41**: MAE **0.0356** (n=**3**)\n- **15**: MAE **0.2206** (n=**2**)\nAcross the **13 routes shown**, MAE ranges from **0.0015** to **0.2206**, so observed 30-minute accuracy varies substantially by route.",
+              "purpose": "TEXT_ATTACHMENT_PURPOSE_ANSWER"
+            }
+          },
+          {
+            "attachment_id": "01f1db096a2e1b3fbaece2bb0fe07db7",
+            "viz": {
+              "query_attachment_id": "01f1db0967731447bc62cf0431dd047e"
+            }
+          }
+        ],
+        "content": "What is the model's 30-minute MAE on observed data?",
+        "conversation_id": "01f1db0962b71064a2bfcdf2267942f0",
+        "created_timestamp": 1794096879066,
+        "id": "01f1db09633313eba293f70637bc19af",
+        "last_updated_timestamp": 1794096895259,
+        "message_id": "01f1db09633313eba293f70637bc19af",
+        "query_result": {
+          "row_count": 13,
+          "statement_id": "01f1db09-677c-1355-b2a8-1f8d4311ac4a"
+        },
+        "space_id": "01f1db093b021033aabbdb939c631a81",
+        "status": "COMPLETED",
+        "user_id": 76339284746693
+      },
+      "answer_text": [
+        "For **observed 30-minute forecasts**, the results shown are **by route**, not one overall model-wide MAE. Examples include:\n- **31**: MAE **0.0015** (n=**1**)\n- **03-05**: MAE **0.0038** (n=**2**)\n- **22**: MAE **0.0229** (n=**2**)\n- **40-41**: MAE **0.0356** (n=**3**)\n- **15**: MAE **0.2206** (n=**2**)\nAcross the **13 routes shown**, MAE ranges from **0.0015** to **0.2206**, so observed 30-minute accuracy varies substantially by route."
+      ],
+      "queries": [
+        {
+          "sql": "WITH `verified` AS (\n  SELECT *,\n         row_number() OVER (\n           PARTITION BY `t0`, `route_short_name`, `direction_id`, `horizon_min`, `actual_data_origin`\n           ORDER BY `scoring_ts` DESC\n         ) AS `rn`\n  FROM `transit`.`gold`.`pred_vs_actual`\n  WHERE `actual_p90_load` IS NOT NULL\n    AND `actual_data_origin` IN ('observed', 'simulated')\n),\n`latest` AS (\n  SELECT *\n  FROM `verified`\n  WHERE `rn` = 1\n)\nSELECT\n  `route_short_name`,\n  `model_name`,\n  `model_version`,\n  COUNT(*) AS `n`,\n  AVG(ABS(`pred_p50` - `actual_p90_load`)) AS `mae_load_factor`,\n  AVG(CAST(`actual_in_p10_p90` AS DOUBLE)) AS `interval_coverage`\nFROM `latest`\nWHERE `horizon_min` = 30\n  AND `actual_data_origin` = 'observed'\n  AND `route_short_name` IS NOT NULL\nGROUP BY `route_short_name`, `model_name`, `model_version`\nORDER BY `route_short_name`",
+          "description": "You want to see the average error of the model's 30-minute load factor predictions compared to actual observed load factors, broken down by route, model name, and model version. The results also show how often the actual load falls within the model's predicted range.",
+          "recomputed_result": [
+            {
+              "route_short_name": "01-04",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "1",
+              "mae_load_factor": "0.028379605378402256",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "03-05",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.003771392106718771",
+              "interval_coverage": "1.0"
+            },
+            {
+              "route_short_name": "12",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "1",
+              "mae_load_factor": "0.06628617469073231",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "15",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.2205910688871935",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "22",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.02290299360021192",
+              "interval_coverage": "0.5"
+            },
+            {
+              "route_short_name": "26",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.0575529482589108",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "27",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.2128609896992132",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "31",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "1",
+              "mae_load_factor": "0.0014946008626578466",
+              "interval_coverage": "1.0"
+            },
+            {
+              "route_short_name": "34",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.026155312176501976",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "35",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "2",
+              "mae_load_factor": "0.025480940867331096",
+              "interval_coverage": "1.0"
+            },
+            {
+              "route_short_name": "36",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "1",
+              "mae_load_factor": "0.06025285185151616",
+              "interval_coverage": "0.0"
+            },
+            {
+              "route_short_name": "40-41",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "3",
+              "mae_load_factor": "0.035555874420721986",
+              "interval_coverage": "0.6666666666666666"
+            },
+            {
+              "route_short_name": "47",
+              "model_name": "transit.ml.crowding_h30",
+              "model_version": "1",
+              "n": "3",
+              "mae_load_factor": "0.050965789380049885",
+              "interval_coverage": "0.0"
+            }
+          ],
+          "conversation_result": {
+            "statement_response": {
+              "manifest": {
+                "chunks": [
+                  {
+                    "byte_count": 2392,
+                    "chunk_index": 0,
+                    "row_count": 13,
+                    "row_offset": 0
+                  }
+                ],
+                "format": "JSON_ARRAY",
+                "schema": {
+                  "column_count": 6,
+                  "columns": [
+                    {
+                      "name": "route_short_name",
+                      "position": 0,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "model_name",
+                      "position": 1,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "model_version",
+                      "position": 2,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "n",
+                      "position": 3,
+                      "type_name": "LONG",
+                      "type_text": "BIGINT"
+                    },
+                    {
+                      "name": "mae_load_factor",
+                      "position": 4,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    },
+                    {
+                      "name": "interval_coverage",
+                      "position": 5,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    }
+                  ]
+                },
+                "total_byte_count": 2392,
+                "total_chunk_count": 1,
+                "total_row_count": 13,
+                "truncated": false
+              },
+              "result": {
+                "chunk_index": 0,
+                "data_array": [
+                  [
+                    "01-04",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "1",
+                    "0.028379605378402256",
+                    "0.0"
+                  ],
+                  [
+                    "03-05",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.003771392106718771",
+                    "1.0"
+                  ],
+                  [
+                    "12",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "1",
+                    "0.06628617469073231",
+                    "0.0"
+                  ],
+                  [
+                    "15",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.2205910688871935",
+                    "0.0"
+                  ],
+                  [
+                    "22",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.02290299360021192",
+                    "0.5"
+                  ],
+                  [
+                    "26",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.0575529482589108",
+                    "0.0"
+                  ],
+                  [
+                    "27",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.2128609896992132",
+                    "0.0"
+                  ],
+                  [
+                    "31",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "1",
+                    "0.0014946008626578466",
+                    "1.0"
+                  ],
+                  [
+                    "34",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.026155312176501976",
+                    "0.0"
+                  ],
+                  [
+                    "35",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "2",
+                    "0.025480940867331096",
+                    "1.0"
+                  ],
+                  [
+                    "36",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "1",
+                    "0.06025285185151616",
+                    "0.0"
+                  ],
+                  [
+                    "40-41",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "3",
+                    "0.035555874420721986",
+                    "0.6666666666666666"
+                  ],
+                  [
+                    "47",
+                    "transit.ml.crowding_h30",
+                    "1",
+                    "3",
+                    "0.050965789380049885",
+                    "0.0"
+                  ]
+                ],
+                "row_count": 13,
+                "row_offset": 0
+              },
+              "statement_id": "01f1db09-677c-1355-b2a8-1f8d4311ac4a",
+              "status": {
+                "state": "SUCCEEDED"
+              }
+            }
+          }
+        }
+      ],
+      "correct": null,
+      "trusted_sql": "WITH verified AS (\n SELECT *, row_number() OVER (\n   PARTITION BY t0,route_short_name,direction_id,horizon_min,actual_data_origin\n   ORDER BY scoring_ts DESC) AS rn\n FROM transit.gold.pred_vs_actual\n WHERE actual_p90_load IS NOT NULL AND actual_data_origin IN ('observed','simulated')\n), latest AS (SELECT * FROM verified WHERE rn=1)\nSELECT route_short_name, model_name, model_version, COUNT(*) AS n,\n AVG(ABS(pred_p50-actual_p90_load)) AS mae_load_factor,\n AVG(CAST(actual_in_p10_p90 AS DOUBLE)) AS interval_coverage\nFROM latest WHERE horizon_min=30 AND actual_data_origin='observed'\nGROUP BY route_short_name,model_name,model_version ORDER BY route_short_name",
+      "trusted_result": [
+        {
+          "route_short_name": "01-04",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "1",
+          "mae_load_factor": "0.028379605378402256",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "03-05",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.003771392106718771",
+          "interval_coverage": "1.0"
+        },
+        {
+          "route_short_name": "12",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "1",
+          "mae_load_factor": "0.06628617469073231",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "15",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.2205910688871935",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "22",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.02290299360021192",
+          "interval_coverage": "0.5"
+        },
+        {
+          "route_short_name": "26",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.0575529482589108",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "27",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.2128609896992132",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "31",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "1",
+          "mae_load_factor": "0.0014946008626578466",
+          "interval_coverage": "1.0"
+        },
+        {
+          "route_short_name": "34",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.026155312176501976",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "35",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "2",
+          "mae_load_factor": "0.025480940867331096",
+          "interval_coverage": "1.0"
+        },
+        {
+          "route_short_name": "36",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "1",
+          "mae_load_factor": "0.06025285185151616",
+          "interval_coverage": "0.0"
+        },
+        {
+          "route_short_name": "40-41",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "3",
+          "mae_load_factor": "0.035555874420721986",
+          "interval_coverage": "0.6666666666666666"
+        },
+        {
+          "route_short_name": "47",
+          "model_name": "transit.ml.crowding_h30",
+          "model_version": "1",
+          "n": "3",
+          "mae_load_factor": "0.050965789380049885",
+          "interval_coverage": "0.0"
+        }
+      ]
+    },
+    {
+      "question": "Which routes bunched most this weekend?",
+      "message": {
+        "attachments": [
+          {
+            "attachment_id": "01f1db096a5410dfac90c787e06b9ae7",
+            "query": {
+              "description": "You want to see which bus routes had the highest rate of bus bunching during the weekend (Saturday and Sunday) of the current week, based on observed headway data. The results show each route's name, the number of valid headway observations, the average rate of bunching (headways less than half the scheduled interval), and the average rate of gaps (headways more than 1.5 times the scheduled interval), ranked by bunching rate.",
+              "query": "WITH route_bunching AS (\n  SELECT\n    `route_short_name`,\n    COUNT(*) AS `n_valid_headways`,\n    AVG(CAST(`is_bunched` AS DOUBLE)) AS `bunching_rate`,\n    AVG(CAST(`is_gap` AS DOUBLE)) AS `gap_rate`\n  FROM `transit`.`silver`.`headways`\n  WHERE `data_origin` = 'observed'\n    AND `headway_ratio` IS NOT NULL\n    AND `route_short_name` IS NOT NULL\n    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 5)\n    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7)\n  GROUP BY `route_short_name`\n), ranked AS (\n  SELECT\n    `route_short_name`,\n    `n_valid_headways`,\n    `bunching_rate`,\n    `gap_rate`,\n    RANK() OVER (ORDER BY `bunching_rate` DESC, `n_valid_headways` DESC, `route_short_name` ASC) AS `bunching_rank`\n  FROM route_bunching\n)\nSELECT\n  `bunching_rank`,\n  `route_short_name`,\n  `n_valid_headways`,\n  `bunching_rate`,\n  `gap_rate`\nFROM ranked\nORDER BY `bunching_rank` ASC, `route_short_name` ASC",
+              "query_result_metadata": {
+                "row_count": 13
+              },
+              "statement_id": "01f1db09-6a5d-16c1-be0b-1784a462967f",
+              "thoughts": [
+                {
+                  "content": "You want to see which bus routes had the highest rate of bus bunching during the weekend (Saturday and Sunday) of the current week, based on observed headway data. The results show each route's name, the number of valid headway observations, the average rate of bunching (headways less than half the scheduled interval), and the average rate of gaps (headways more than 1.5 times the scheduled interval), ranked by bunching rate.",
+                  "thought_type": "THOUGHT_TYPE_DESCRIPTION"
+                },
+                {
+                  "content": "- Definition of \"this weekend\": The query interprets \"this weekend\" as the Saturday and Sunday of the current local week starting on Monday in the America/Chicago timezone. Alternative interpretations could include the last weekend, next weekend, or a rolling 7-day weekend period.",
+                  "thought_type": "THOUGHT_TYPE_UNDERSTANDING"
+                },
+                {
+                  "content": "- transit.silver.headways",
+                  "thought_type": "THOUGHT_TYPE_DATA_SOURCING"
+                },
+                {
+                  "content": "- Filter observed headway data for the current weekend (Saturday and Sunday) in the America/Chicago timezone.\n- Group the data by bus route and count the number of valid headway observations per route.\n- Calculate the average bunching rate (fraction of headways with ratio < 0.5) and gap rate (fraction of headways with ratio > 1.5) for each route.\n- Rank the routes by their bunching rate in descending order, using the number of valid headways and route name as tie-breakers.\n- Return the rank, route name, number of valid headways, bunching rate, and gap rate for each route, ordered by rank and route name.",
+                  "thought_type": "THOUGHT_TYPE_STEPS"
+                }
+              ]
+            }
+          },
+          {
+            "text": {
+              "content": "No observed route had **any bunching** this weekend: all **13 routes** shown had a **0.0% bunching rate** based on valid headway matches. Examples include:\n- **01-04** \u2014 **0.0%** bunching across **91** valid headways\n- **40-41** \u2014 **0.0%** bunching across **90** valid headways\n- **47** \u2014 **0.0%** bunching across **74** valid headways\n- **03-05** \u2014 **0.0%** bunching across **69** valid headways\n- **27** \u2014 **0.0%** bunching across **54** valid headways\nAmong these observed weekend routes, the only notable variation was in gaps, with **01-04** highest at about **3.3%** and **03-05** next at about **2.9%**.",
+              "purpose": "TEXT_ATTACHMENT_PURPOSE_ANSWER"
+            }
+          },
+          {
+            "attachment_id": "01f1db096c8b133d9e756df5b2e86671",
+            "viz": {
+              "query_attachment_id": "01f1db096a5410dfac90c787e06b9ae7"
+            }
+          },
+          {
+            "attachment_id": "01f1db096e441a5a8c42694dc6517999",
+            "suggested_questions": {
+              "questions": [
+                "Which routes had the highest average load factor this weekend?",
+                "What were the peak hours for bunching on the most bunched routes this weekend?",
+                "How did the bunching rates this weekend compare to the previous weekend for the top bunched routes?"
+              ]
+            }
+          }
+        ],
+        "content": "Which routes bunched most this weekend?",
+        "conversation_id": "01f1db0962b7107192c9def6db608703",
+        "created_timestamp": 1794096879066,
+        "id": "01f1db096333135d88927b0646d8bed2",
+        "last_updated_timestamp": 1794096899086,
+        "message_id": "01f1db096333135d88927b0646d8bed2",
+        "query_result": {
+          "row_count": 13,
+          "statement_id": "01f1db09-6a5d-16c1-be0b-1784a462967f"
+        },
+        "space_id": "01f1db093b021033aabbdb939c631a81",
+        "status": "COMPLETED",
+        "user_id": 76339284746693
+      },
+      "answer_text": [
+        "No observed route had **any bunching** this weekend: all **13 routes** shown had a **0.0% bunching rate** based on valid headway matches. Examples include:\n- **01-04** \u2014 **0.0%** bunching across **91** valid headways\n- **40-41** \u2014 **0.0%** bunching across **90** valid headways\n- **47** \u2014 **0.0%** bunching across **74** valid headways\n- **03-05** \u2014 **0.0%** bunching across **69** valid headways\n- **27** \u2014 **0.0%** bunching across **54** valid headways\nAmong these observed weekend routes, the only notable variation was in gaps, with **01-04** highest at about **3.3%** and **03-05** next at about **2.9%**."
+      ],
+      "queries": [
+        {
+          "sql": "WITH route_bunching AS (\n  SELECT\n    `route_short_name`,\n    COUNT(*) AS `n_valid_headways`,\n    AVG(CAST(`is_bunched` AS DOUBLE)) AS `bunching_rate`,\n    AVG(CAST(`is_gap` AS DOUBLE)) AS `gap_rate`\n  FROM `transit`.`silver`.`headways`\n  WHERE `data_origin` = 'observed'\n    AND `headway_ratio` IS NOT NULL\n    AND `route_short_name` IS NOT NULL\n    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) >= date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 5)\n    AND to_date(from_utc_timestamp(`arrive_ts`, 'America/Chicago')) < date_add(to_date(date_trunc('week', from_utc_timestamp(current_timestamp(), 'America/Chicago'))), 7)\n  GROUP BY `route_short_name`\n), ranked AS (\n  SELECT\n    `route_short_name`,\n    `n_valid_headways`,\n    `bunching_rate`,\n    `gap_rate`,\n    RANK() OVER (ORDER BY `bunching_rate` DESC, `n_valid_headways` DESC, `route_short_name` ASC) AS `bunching_rank`\n  FROM route_bunching\n)\nSELECT\n  `bunching_rank`,\n  `route_short_name`,\n  `n_valid_headways`,\n  `bunching_rate`,\n  `gap_rate`\nFROM ranked\nORDER BY `bunching_rank` ASC, `route_short_name` ASC",
+          "description": "You want to see which bus routes had the highest rate of bus bunching during the weekend (Saturday and Sunday) of the current week, based on observed headway data. The results show each route's name, the number of valid headway observations, the average rate of bunching (headways less than half the scheduled interval), and the average rate of gaps (headways more than 1.5 times the scheduled interval), ranked by bunching rate.",
+          "recomputed_result": [
+            {
+              "bunching_rank": "1",
+              "route_short_name": "01-04",
+              "n_valid_headways": "91",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.03296703296703297"
+            },
+            {
+              "bunching_rank": "2",
+              "route_short_name": "40-41",
+              "n_valid_headways": "90",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "3",
+              "route_short_name": "47",
+              "n_valid_headways": "74",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "4",
+              "route_short_name": "03-05",
+              "n_valid_headways": "69",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.028985507246376812"
+            },
+            {
+              "bunching_rank": "5",
+              "route_short_name": "27",
+              "n_valid_headways": "54",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.018518518518518517"
+            },
+            {
+              "bunching_rank": "6",
+              "route_short_name": "35",
+              "n_valid_headways": "48",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "7",
+              "route_short_name": "12",
+              "n_valid_headways": "44",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "8",
+              "route_short_name": "26",
+              "n_valid_headways": "42",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "9",
+              "route_short_name": "15",
+              "n_valid_headways": "34",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "10",
+              "route_short_name": "22",
+              "n_valid_headways": "32",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "11",
+              "route_short_name": "34",
+              "n_valid_headways": "25",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "12",
+              "route_short_name": "31",
+              "n_valid_headways": "18",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            },
+            {
+              "bunching_rank": "13",
+              "route_short_name": "36",
+              "n_valid_headways": "15",
+              "bunching_rate": "0.0",
+              "gap_rate": "0.0"
+            }
+          ],
+          "conversation_result": {
+            "statement_response": {
+              "manifest": {
+                "chunks": [
+                  {
+                    "byte_count": 1312,
+                    "chunk_index": 0,
+                    "row_count": 13,
+                    "row_offset": 0
+                  }
+                ],
+                "format": "JSON_ARRAY",
+                "schema": {
+                  "column_count": 5,
+                  "columns": [
+                    {
+                      "name": "bunching_rank",
+                      "position": 0,
+                      "type_name": "INT",
+                      "type_text": "INT"
+                    },
+                    {
+                      "name": "route_short_name",
+                      "position": 1,
+                      "type_name": "STRING",
+                      "type_text": "STRING"
+                    },
+                    {
+                      "name": "n_valid_headways",
+                      "position": 2,
+                      "type_name": "LONG",
+                      "type_text": "BIGINT"
+                    },
+                    {
+                      "name": "bunching_rate",
+                      "position": 3,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    },
+                    {
+                      "name": "gap_rate",
+                      "position": 4,
+                      "type_name": "DOUBLE",
+                      "type_text": "DOUBLE"
+                    }
+                  ]
+                },
+                "total_byte_count": 1312,
+                "total_chunk_count": 1,
+                "total_row_count": 13,
+                "truncated": false
+              },
+              "result": {
+                "chunk_index": 0,
+                "data_array": [
+                  [
+                    "1",
+                    "01-04",
+                    "91",
+                    "0.0",
+                    "0.03296703296703297"
+                  ],
+                  [
+                    "2",
+                    "40-41",
+                    "90",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "3",
+                    "47",
+                    "74",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "4",
+                    "03-05",
+                    "69",
+                    "0.0",
+                    "0.028985507246376812"
+                  ],
+                  [
+                    "5",
+                    "27",
+                    "54",
+                    "0.0",
+                    "0.018518518518518517"
+                  ],
+                  [
+                    "6",
+                    "35",
+                    "48",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "7",
+                    "12",
+                    "44",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "8",
+                    "26",
+                    "42",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "9",
+                    "15",
+                    "34",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "10",
+                    "22",
+                    "32",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "11",
+                    "34",
+                    "25",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "12",
+                    "31",
+                    "18",
+                    "0.0",
+                    "0.0"
+                  ],
+                  [
+                    "13",
+                    "36",
+                    "15",
+                    "0.0",
+                    "0.0"
+                  ]
+                ],
+                "row_count": 13,
+                "row_offset": 0
+              },
+              "statement_id": "01f1db09-6a5d-16c1-be0b-1784a462967f",
+              "status": {
+                "state": "SUCCEEDED"
+              }
+            }
+          }
+        }
+      ],
+      "correct": null,
+      "trusted_sql": "SELECT route_short_name, COUNT(*) AS n_valid_headways,\n AVG(CAST(is_bunched AS DOUBLE)) AS bunching_rate,\n AVG(CAST(is_gap AS DOUBLE)) AS gap_rate\nFROM transit.silver.headways\nWHERE data_origin='observed' AND headway_ratio IS NOT NULL\n AND to_date(from_utc_timestamp(arrive_ts,'America/Chicago')) >=\n date_add(to_date(date_trunc('week',from_utc_timestamp(current_timestamp(),'America/Chicago'))),5)\n AND to_date(from_utc_timestamp(arrive_ts,'America/Chicago')) <\n date_add(to_date(date_trunc('week',from_utc_timestamp(current_timestamp(),'America/Chicago'))),7)\nGROUP BY route_short_name ORDER BY bunching_rate DESC,n_valid_headways DESC",
+      "trusted_result": [
+        {
+          "route_short_name": "01-04",
+          "n_valid_headways": "91",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.03296703296703297"
+        },
+        {
+          "route_short_name": "40-41",
+          "n_valid_headways": "90",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "47",
+          "n_valid_headways": "74",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "03-05",
+          "n_valid_headways": "69",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.028985507246376812"
+        },
+        {
+          "route_short_name": "27",
+          "n_valid_headways": "54",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.018518518518518517"
+        },
+        {
+          "route_short_name": "35",
+          "n_valid_headways": "48",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "12",
+          "n_valid_headways": "44",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "26",
+          "n_valid_headways": "42",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "15",
+          "n_valid_headways": "34",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "22",
+          "n_valid_headways": "32",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "34",
+          "n_valid_headways": "25",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "31",
+          "n_valid_headways": "18",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        },
+        {
+          "route_short_name": "36",
+          "n_valid_headways": "15",
+          "bunching_rate": "0.0",
+          "gap_rate": "0.0"
+        }
+      ]
+    }
+  ]
+}
