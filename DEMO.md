@@ -1,41 +1,32 @@
-# AggiePulse demo script (5 minutes)
-
-Workspace: `https://dbc-595c228e-76f6.cloud.databricks.com` (profile `transit`). Open every tab below before you start.
+# AggiePulse demo (5 minutes)
 
 | Tab | Link |
 |---|---|
-| App (public, no login) | https://aggiepulse-n5me.onrender.com |
-| App (Databricks, login) | https://aggiepulse-7474654155800707.aws.databricksapps.com |
+| App | https://aggiepulse-n5me.onrender.com |
 | Ops dashboard | https://dbc-595c228e-76f6.cloud.databricks.com/dashboardsv3/01f1db0925b81a47ad018d8fc898deaa/published?w=7474654155800707 |
 | Genie | https://dbc-595c228e-76f6.cloud.databricks.com/genie/rooms/01f1db093b021033aabbdb939c631a81?w=7474654155800707 |
 | Core pipeline | https://dbc-595c228e-76f6.cloud.databricks.com/pipelines/206b4370-b5cc-48eb-8eba-932dcea5dc95 |
-| Ops pipeline | https://dbc-595c228e-76f6.cloud.databricks.com/pipelines/3db97dca-16f4-4d27-88eb-3563ac1749ee |
 | MLflow | https://dbc-595c228e-76f6.cloud.databricks.com/ml/experiments/2943343622901154 |
 | Lineage | Catalog Explorer → `transit.gold.predictions` → Lineage |
 
-## 1 hour before
+## Before
 
-1. **Health:** the header chip in the app is green; `cat aggiepulse/data/collector_heartbeat.json` shows recent successes; `SELECT * FROM transit.gold.ops_health ORDER BY checked_ts DESC LIMIT 1`.
-2. **Freeze:** `cd aggiepulse && DATABRICKS_CONFIG_PROFILE=transit uv run --with databricks-sdk python scripts/ops/freeze.py --label demo`. Note the snapshot id.
-3. **Rehearse Genie** with the exact question below, so you know the answer.
-4. **Network:** TAMU's campus network (Cisco Umbrella) blocks the Databricks app hostname as malware; a Firefox certificate warning or a `malware.opendns.com` page means that block. Present from the public Render link (https://aggiepulse-n5me.onrender.com), which resolves normally on campus, or use a phone hotspot. Check `aggiepulse/scripts/ops/keepalive.sh status` shows recent 200s so the free-tier site is awake.
-5. **Fallback:** if live data looks thin (nights, weekends) or TripSpark is down, use **Replay** on the live map instead of live buses. Keep a screen recording of a good run as the last resort.
+- The app's status box is green, and `aggiepulse/scripts/ops/keepalive.sh status` shows recent 200s.
+- Use the Render link on campus; TAMU Wi-Fi blocks the Databricks app link.
+- Ask Genie the question below once, so you know the answer.
+- If live data is thin (nights, weekends), use **Replay** on the live map. Keep a screen recording as a last resort.
 
 ## Script
 
-1. **Hook (30 s) · App → Live map.** "TAMU moves about a million riders a month (NTD). These are the buses right now, and the ring is how full each one is." Click a bus.
-2. **Honesty (30 s).** Point at the labels: `MEASURED · APC` is the buses' own passenger counters, `DERIVED · GPS`, `PREDICTED`, and `SIMULATED`. "We only had live data from Nov 7, so history before that is simulated and calibrated to NTD, and it's labelled everywhere."
-3. **Databricks depth (90 s).**
-   - Core pipeline graph: Auto Loader → Bronze → Silver, with expectations (APC stuck-counter warnings, bounding box, GPS age).
-   - Lineage from the raw Volume to `gold.predictions`.
-   - MLflow: B0 persistence vs B1 seasonal vs LightGBM per horizon, with observed and simulated metrics kept separate; models in UC as `transit.ml.crowding_h30@champion`.
-   - Genie: *"Which routes bunched most this weekend?"*
-4. **Forecast + why (60 s) · App → Forecast.** The highest-risk route in 30 min, its p10–p90 range, and the factor chips (class change, weather, recent load).
-5. **Event intelligence (60 s) · App → Events.** Tennessee at Kyle Field, Sat Nov 14: the routes it affects and the detours TripSpark already announced. "This impact is a simulated prior until we collect game-day data." If the demo is after Nov 14, use History or Replay for the real game day.
-6. **Student value (30 s) · App → Plan my trip.** Pick two stops and read the top option's one-line reason.
+1. **Hook (30 s) · Live map.** "TAMU carries about a million riders a month. These are the buses now; the ring is how full each one is." Click a bus.
+2. **Honesty (30 s).** Point at the Measured / Predicted / Simulated badges. "Real data starts Nov 7. Earlier history is simulated, calibrated to NTD, and labelled everywhere."
+3. **Databricks (90 s).** Pipeline graph and its data-quality expectations, then lineage to `gold.predictions`. In MLflow, the baselines vs LightGBM per horizon, with the model in UC as `@champion`. In Genie: *"Which routes bunched most this weekend?"*
+4. **Forecast (60 s).** The highest-risk route in 30 min, its likely range, and the reasons shown.
+5. **Events (60 s).** The Tennessee game at Kyle Field (Nov 14): nearest routes and TripSpark's detour alerts. Say "the impact is a simulated prior."
+6. **Plan my trip (30 s).** Pick two stops and read the top option.
 
-## Be ready to answer honestly
+## Hard questions
 
-- **Accuracy on real riders:** see the model card (`aggiepulse/src/aggiepulse/ml/model_card.md`). Observed n is small, and the p10–p90 ranges currently cover only ~30% of outcomes, against the 80% target. Interval calibration switches on once there are ≥200 observed windows across ≥2 weekdays.
-- **APC accuracy:** vendor counters, unvalidated. We flag stuck counts but can't audit them.
-- **Data access:** TripSpark's public map feed (`/RouteMap` only; robots.txt allows it), polled every 30 s, which is fewer requests than one open browser tab. We've emailed TAMU Transportation.
+- **Accuracy on real riders?** Too little data yet. Its likely ranges cover about 30% of real outcomes, against an 80% target. Calibration switches on automatically at 200 real windows across 2 weekdays.
+- **Passenger counter accuracy?** These are the vendor's counters and we can't audit them. We flag stuck counts.
+- **Data access?** We use TripSpark's public map feed only, which robots.txt allows. We poll every 30 s, fewer requests than one open browser tab, and we've emailed TAMU Transportation.

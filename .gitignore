@@ -1,0 +1,5 @@
+# Only README.md and DEMO.md are published; other Markdown docs stay local.
+*.md
+*.MD
+!/README.md
+!/DEMO.md

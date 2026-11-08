@@ -1,55 +1,65 @@
 # AggiePulse
 
-Live occupancy and short-term crowding forecasts for Texas A&M buses.
+How full Texas A&M buses are right now, and how crowded they're likely to be in 15–60 minutes.
 
-**Site:** https://aggiepulse-n5me.onrender.com (public, read-only). The Databricks-hosted original, https://aggiepulse-7474654155800707.aws.databricksapps.com, needs a login to the `transit` workspace.
+**Site:** https://aggiepulse-n5me.onrender.com (public, read-only)
 
-## Pages
+## Using the site
 
-| Page | What it shows |
+| Page | Use it to |
 |---|---|
-| **Live map** | Measured bus fullness, named and searchable route chips, route forecasts, event markers and service alerts. A clear no-service message gives the next scheduled start. Replay has a labelled time slider, play/pause and speed controls for recorded trips. |
-| **Forecast** | Expected fullness in 15, 30 and 60 min, a likely range, chance of crowding, and readable reasons such as classes letting out or rain. Expired forecasts are hidden; outside service hours the page explains when forecasts resume. |
-| **Events** | Dated event cards with readable venue names, expected demand and naturally sorted nearby route chips with “Show all”. The Tennessee game is featured first. Service alerts show dates, affected routes and an expandable notice without internal stop IDs. |
-| **Plan my trip** | Search stop names, with route or geographic context for duplicates. Compare typical wait, ride, walking and fullness, plus named boarding and arrival stops. The planner explains that its estimates are not date-specific live departures. |
-| **History** | Real passenger readings and busy bus fullness over time, with named routes. Forecast comparisons explain typical error and likely-range coverage. Empty scheduled windows are excluded; missing readings and insufficient comparisons have clear explanations. |
+| **Live map** | See every bus and how full it is. Search routes by name; Replay plays back recorded trips. |
+| **Forecast** | See expected fullness in 15, 30 and 60 minutes, the likely range, the chance of crowding, and why. |
+| **Events** | See upcoming campus events and service alerts, and the nearest routes they affect. |
+| **Plan my trip** | Pick two stops by name and compare options by wait, ride, walk and fullness. |
+| **History** | Compare past passenger counts with what the model predicted. |
 
-Each page has one “About this data” disclosure for source details, model assumptions and fallbacks. Small Measured, Predicted and Simulated badges explain the numbers. All times use Central time, and the layouts work on phones and desktops.
+Each page link can be shared (e.g. `/#forecast`). Times are Central. Every number is labelled:
 
-## Labels
+- **Measured:** the buses' own passenger counters (vendor accuracy unverified).
+- **Derived:** computed from GPS, e.g. bunching.
+- **Predicted:** model output.
+- **Simulated:** modelled history or assumed effects, not observations.
 
-Every number carries one of these labels:
+The status box at the top shows how fresh the data is, and says when no buses are scheduled.
 
-- `MEASURED · APC`: passenger counts reported by the buses' own counters (vendor accuracy unverified).
-- `DERIVED · GPS`: computed from bus positions, e.g. headways and bunching.
-- `PREDICTED`: model output.
-- `SIMULATED`: based on modelled history or assumed effects, not observations.
+## How it works
 
-## Giving someone access
+1. **Collect.** A laptop polls TripSpark's public map feed every 30 s. Daily jobs pull TAMU GTFS, the campus events calendar, weather (Open-Meteo, NWS) and NTD ridership. Files go to a Unity Catalog Volume.
+2. **Process.** Databricks Lakeflow pipelines (Auto Loader → Bronze → Silver → Gold) clean the data, and build stop visits, headways and 15-minute route-direction windows.
+3. **Forecast.** LightGBM quantile models (p10/p50/p90) plus a crowding classifier, one set per horizon. They're tracked in MLflow, registered in Unity Catalog, and must beat persistence and seasonal baselines. Scoring runs every 15 min, and retraining runs nightly.
+4. **Serve.** FastAPI and React/MapLibre, running as a Databricks App and as a public Render mirror. A Genie space and an AI/BI dashboard sit on the Gold tables.
 
-The site isn't public. Each viewer needs a login to the `transit` Databricks workspace plus permission to use the app. A workspace admin runs the following, or does it in the UI under Settings → Identity and access → Users, then Compute → Apps → aggiepulse → Permissions:
+## Running it
 
-```sh
-# 1. Add them to the workspace (they get an email invite)
-databricks users create --user-name someone@example.com -p transit
+Code is in `aggiepulse/`. Use the Databricks CLI profile `transit`.
 
-# 2. Let them open the app (update-permissions adds; set-permissions would replace everyone)
-databricks apps update-permissions aggiepulse -p transit \
-  --json '{"access_control_list":[{"user_name":"someone@example.com","permission_level":"CAN_USE"}]}'
-```
-
-Viewers don't need table permissions, because the app reads data as its own service principal. To remove access, delete the user, or rerun step 2 with the permission removed using `set-permissions`.
-
-## Public mirror (no login)
-
-`render.yaml` deploys the same app to Render as a public, read-only copy. It signs in to Databricks as the service principal `aggiepulse-public`, which can only `SELECT` the tables the app shows and read `transit.raw.live`, and caches each dataset for 30 s. To recreate it: create a service principal with the `databricks-sql-access` entitlement, apply those grants plus `CAN_USE` on the warehouse, create an OAuth secret, then in Render choose New → Blueprint, pick this repo, and paste the client ID and secret when asked. The laptop collector must be running for live buses.
-
-Render's free tier sleeps after 15 idle minutes. `aggiepulse/scripts/ops/keepalive.sh install https://<service>.onrender.com` pings `/api/health` every 10 minutes from the laptop (no Databricks queries); `keepalive.sh uninstall` stops it.
+- **Laptop processes** (run from `aggiepulse/`; keep them running for live buses):
+  ```sh
+  nohup scripts/collector/run_backup_collector.sh --interval 30 --base-interval 3600 --rotate-minutes 5 &
+  nohup scripts/platform/run_sync_loop.sh --rotate-minutes 5 &
+  nohup scripts/platform/run_publish_live_loop.sh --interval 30 &
+  scripts/ops/install_launchd.sh                                    # daily batch download at 06:00
+  scripts/ops/keepalive.sh install https://aggiepulse-n5me.onrender.com  # stops Render's free tier sleeping
+  ```
+- **Deploy Databricks** (pipelines, jobs, models, app):
+  ```sh
+  npm run build --prefix app/frontend && databricks bundle deploy -p transit
+  databricks apps deploy aggiepulse -p transit \
+    --source-code-path /Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/app
+  ```
+- **Public mirror:** `render.yaml` builds `aggiepulse/app/Dockerfile`, and each push to `main` redeploys it. It signs in as the read-only service principal `aggiepulse-public`, using the `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` environment variables in Render.
+- **Databricks app access:** the original app (https://aggiepulse-7474654155800707.aws.databricksapps.com) needs a workspace login. To give someone access:
+  ```sh
+  databricks users create --user-name someone@example.com -p transit
+  databricks apps update-permissions aggiepulse -p transit \
+    --json '{"access_control_list":[{"user_name":"someone@example.com","permission_level":"CAN_USE"}]}'
+  ```
+- **Tests:** `uv run pytest tests -q` and `npm test --prefix app/frontend`.
 
 ## Caveats
 
-- Collection started 2026-11-07, so real data is still thin. The models are trained mostly on simulated history calibrated to TAMU's NTD ridership. Treat forecasts as indicative until weekday data accumulates.
-- Event impact (e.g. the 2026-11-14 Tennessee game at Kyle Field) is a simulated prior, not a measured effect.
-- Data sources: TAMU Transportation Services (GTFS, TripSpark), TAMU events calendar, Open-Meteo (CC BY 4.0), NWS, and the National Transit Database.
-
-For development and operations, see `aggiepulse/app/README.md`, `aggiepulse/scripts/platform/README.md` and `PLAN.MD`.
+- Collection started 2026-11-07. The models are trained mostly on simulated history calibrated to NTD ridership, so treat forecasts as indicative until weekday data builds up.
+- Event impact (e.g. Tennessee at Kyle Field, 2026-11-14) is a simulated prior, not a measured effect.
+- On TAMU Wi-Fi, the campus DNS filter blocks the Databricks app link; use the Render link.
+- Data: TAMU Transportation Services (GTFS, TripSpark), TAMU events calendar, Open-Meteo (CC BY 4.0), NWS, National Transit Database.
