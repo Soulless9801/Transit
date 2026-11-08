@@ -1,4 +1,4 @@
-import {cleanText, compareRoutes, parseUtc, readableName} from '../format';
+import {cleanText, compareRoutes, groupShowings, parseUtc, readableName} from '../format';
 import type {Route} from '../format';
 import {AboutThisData, Badge, EmptyState, PageHeader, RouteChipList, Status, StopName, TimeLabel, useApi} from '../ui';
 
@@ -9,8 +9,8 @@ export default function Events() {
   const alerts = useApi<{data: Alert[]; source: string}>('/api/alerts');
   const routes = useApi<Route[]>('/api/routes');
   const game = (e: Event) => e.event_id === 'tennessee-2026-11-14';
-  const list = [...(events.data?.data ?? [])].filter(e => game(e) || !(e.venue_key?.toLowerCase().replace(/_/g,' ') === 'kyle field' && e.start_ts.startsWith('2026-11-14')))
-    .sort((a,b) => Number(game(b))-Number(game(a)) || (parseUtc(a.start_ts)?.getTime() ?? Infinity)-(parseUtc(b.start_ts)?.getTime() ?? Infinity));
+  const list = groupShowings([...(events.data?.data ?? [])].filter(e => game(e) || !(e.venue_key?.toLowerCase().replace(/_/g,' ') === 'kyle field' && e.start_ts.startsWith('2026-11-14')))
+    .sort((a,b) => Number(game(b))-Number(game(a)) || (parseUtc(a.start_ts)?.getTime() ?? Infinity)-(parseUtc(b.start_ts)?.getTime() ?? Infinity)));
   const alertList = [...new Map((alerts.data?.data ?? []).map(a => [cleanText(a.title)+'|'+cleanText(a.text),a])).values()]
     .filter(a => !a.end_ts || (parseUtc(a.end_ts)?.getTime() ?? Infinity) >= Date.now())
     .sort((a,b) => (parseUtc(a.start_ts)?.getTime() ?? 0)-(parseUtc(b.start_ts)?.getTime() ?? 0));
@@ -22,6 +22,7 @@ export default function Events() {
       {game(e) && <span className="eyebrow">GAME DAY · FEATURED</span>}
       <h2>{cleanText(e.title)}</h2>
       <p className="event-when"><TimeLabel value={e.start_ts} dateOnly={e.time_tba}/>{e.time_tba && ' · Kickoff time to be announced'}</p>
+      {e.showings.length > 1 && <p className="meta">Also: {e.showings.slice(1).map((ts, i) => <span key={ts}>{i > 0 && ' · '}<TimeLabel value={ts}/></span>)}</p>}
       <p className="meta">{e.venue_name || readableName(e.venue_key) || 'Venue to be announced'}</p>
       <p><strong>Expected impact:</strong> {(e.significance ?? 0) >= 14 ? 'Buses near the venue may be much busier.' : (e.significance ?? 0) >= 10 ? 'Expect busier buses near the venue.' : 'Some extra riders near the venue.'} <Badge kind="SIMULATED"/></p>
       {!!e.impacts?.length && <p>Modelled increase: about {Math.round(Math.max(...e.impacts.map(p => p.event_uplift))*100)} percentage points at the busiest nearby route.</p>}

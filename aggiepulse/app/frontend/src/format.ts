@@ -145,6 +145,21 @@ export function serviceMessage(f?: Freshness, noun = 'Forecasts'): string {
 export function cleanText(text: string): string {
   return text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/\(ID:\s*[^)]+\)/gi, '').replace(/\s+/g, ' ').trim();
 }
+export function groupShowings<T extends {title: string; venue_key?: string; start_ts: string}>(events: T[]): (T & {showings: string[]})[] {
+  const groups = new Map<string, {first: T; showings: string[]}>();
+  for (const event of events) {
+    const titleKey = cleanText(event.title).toLowerCase().replace(/\s+/g, ' ').trim();
+    const venueKey = (event.venue_key ?? '').toLowerCase().trim();
+    const key = `${titleKey}|${venueKey}`;
+    const group = groups.get(key);
+    if (!group) {
+      groups.set(key, {first: event, showings: [event.start_ts]});
+    } else {
+      group.showings.push(event.start_ts);
+    }
+  }
+  return [...groups.values()].map(g => ({...g.first, showings: g.showings}));
+}
 export type HistoryRow = {route_short_name: string; direction_id: string; direction_name?: string; window_start: string; p90_load_factor: number | null; avg_load_factor?: number | null; n_pings: number | null};
 export type Series = {direction: string; label: string; points: {t: Date; p90: number; n: number}[]};
 export function historySeries(rows: HistoryRow[], route: string): Series[] {
