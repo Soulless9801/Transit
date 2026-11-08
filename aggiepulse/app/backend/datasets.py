@@ -437,6 +437,7 @@ class Datasets:
                 "comparison": list,
                 "route_directions": local_route_directions,
                 "pipeline": list,
+                "service": list,
             }[name]()
             if not rows and name != "predictions":
                 frozen = (
@@ -606,6 +607,16 @@ class Datasets:
             "pipeline_lag_s": max(0, (now - max(gps)).total_seconds()) if gps else None,
             "pipeline_source": pipeline["source"],
         }
+        service = self.get("service")
+        row = service["data"][0] if service["data"] else {}
+        result["freshness"].update(
+            # None means unknown (e.g. local mode): the chip then judges every age.
+            in_service=row.get("in_service"),
+            data_expected=row.get("data_expected"),
+            last_scheduled_ts=row.get("last_scheduled_ts"),
+            next_scheduled_ts=row.get("next_scheduled_ts"),
+            service_source=service["source"],
+        )
         return result
 
 

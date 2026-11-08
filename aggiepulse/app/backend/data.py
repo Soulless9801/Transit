@@ -209,6 +209,23 @@ class DatabricksBackend:
             "SELECT route_short_name, route_id, direction_id, direction_key, shape_id"
             " FROM transit.silver.route_direction_map WHERE is_selected LIMIT 10000"
         ),
+        # Scheduled-service context for the freshness chip, so "no buses scheduled"
+        # isn't reported as stale data. data_expected skips the first 20 min of service,
+        # because the pipeline needs about that long before fresh pings reach silver.
+        "service": (
+            "SELECT"
+            " max(CASE WHEN sched_arrival_ts <= current_timestamp() THEN sched_arrival_ts END)"
+            " AS last_scheduled_ts,"
+            " min(CASE WHEN sched_arrival_ts > current_timestamp() THEN sched_arrival_ts END)"
+            " AS next_scheduled_ts,"
+            " count_if(sched_arrival_ts BETWEEN current_timestamp() - INTERVAL 10 MINUTES"
+            " AND current_timestamp() + INTERVAL 10 MINUTES) > 0 AS in_service,"
+            " count_if(sched_arrival_ts BETWEEN current_timestamp() - INTERVAL 60 MINUTES"
+            " AND current_timestamp() - INTERVAL 20 MINUTES) > 0 AS data_expected"
+            " FROM transit.silver.schedule_expanded"
+            " WHERE sched_arrival_ts BETWEEN current_timestamp() - INTERVAL 2 DAYS"
+            " AND current_timestamp() + INTERVAL 7 DAYS"
+        ),
         "pipeline": (
             "SELECT max(ts_gps) AS latest_pipeline_gps_ts,"
             " max(ingest_ts) AS latest_pipeline_ingest_ts"

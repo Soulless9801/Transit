@@ -133,9 +133,18 @@ export function ageLabel(seconds: number | null | undefined): string {
 export type Freshness = {
   bus_snapshot_age_s: number | null; bus_source: string; last_scoring_ts: string | null;
   scoring_age_s: number | null; pipeline_lag_s: number | null;
+  in_service?: boolean | null; data_expected?: boolean | null; next_scheduled_ts?: string | null;
 };
-export function freshnessLevel(f: Freshness): 'ok' | 'amber' | 'red' {
-  if (f.bus_snapshot_age_s == null || f.scoring_age_s == null || f.pipeline_lag_s == null ||
+export function freshnessLevel(f: Freshness): 'ok' | 'idle' | 'amber' | 'red' {
+  // The live bus snapshot proves the collector is alive, so it's judged at any hour.
+  if (f.bus_snapshot_age_s == null || f.bus_source === 'local-snapshot') return 'red';
+  // Outside scheduled service (or its first 20 min) no new pings or forecasts are expected.
+  if (f.data_expected === false) {
+    if (f.bus_snapshot_age_s > 600) return 'red';
+    if (f.bus_snapshot_age_s > 180) return 'amber';
+    return f.in_service ? 'ok' : 'idle';
+  }
+  if (f.scoring_age_s == null || f.pipeline_lag_s == null ||
       f.bus_source === 'local-snapshot' || f.bus_snapshot_age_s > 600 || f.scoring_age_s > 3600 || f.pipeline_lag_s > 7200) return 'red';
   return f.bus_snapshot_age_s > 180 || f.scoring_age_s > 1800 || f.pipeline_lag_s > 2400 ? 'amber' : 'ok';
 }
