@@ -150,6 +150,7 @@ article { background: var(--surface); border: 1px solid var(--line); border-radi
 .field-error { font-size: 14px; color: var(--danger-ink); margin: 4px 0 0; }
 .btn { display: inline-flex; align-items: center; justify-content: center; background: var(--maroon); color: white; min-height: 44px; padding: 0 20px; border: 0; border-radius: var(--radius); font-weight: 650; cursor: pointer; }
 .btn--ghost { background: white; color: var(--maroon); border: 1px solid var(--maroon); }
+.swap-btn { min-height: 36px; padding: 0 12px; font-size: 14px; }
 .status-msg { font-size: 14px; color: var(--ink-2); margin: 16px 0; }
 .status-msg[role="alert"] { color: var(--danger-ink); }
 .chart { margin: 20px 0; padding: 16px; background: white; border: 1px solid var(--line); border-radius: 8px; }
