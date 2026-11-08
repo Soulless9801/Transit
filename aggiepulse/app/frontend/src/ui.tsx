@@ -72,10 +72,11 @@ export function RouteChip({route, code}: {route?: Route; code?: string}) {
   const bg = routeColor(r?.route_color);
   return <span className="route-chip"><b style={{background: bg, color: safeTextColor(bg, r?.route_text_color)}}>{r?.route_short_name || code || 'Bus'}</b><span>{r?.route_long_name || 'Route name unavailable'}</span></span>;
 }
-export function RouteChipList({codes, routes = [], limit = 3, label = 'Nearby routes'}: {codes: string[]; routes?: Route[]; limit?: number; label?: string}) {
-  const sorted = [...new Set(codes)].sort(compareRoutes);
-  const chip = (code: string) => <RouteChip key={code} code={code} route={routes.find(r => r.route_short_name === code)}/>;
-  return <div className="route-chip-list"><p className="meta">{label} · {sorted.length} {sorted.length === 1 ? 'route' : 'routes'}</p><div className="chip-wrap">{sorted.slice(0,limit).map(chip)}</div>{sorted.length > limit && <details><summary>Show all {sorted.length} routes</summary><div className="chip-wrap">{sorted.slice(limit).map(chip)}</div></details>}</div>;
+export function RouteChipList({codes, routes = [], limit = 3, label = 'Nearby routes', ordered = false, note, showCount = true}: {codes: string[]; routes?: Route[]; limit?: number; label?: string; ordered?: boolean; note?: (code: string) => string | undefined; showCount?: boolean}) {
+  const sorted = [...new Set(codes)];
+  if (!ordered) sorted.sort(compareRoutes);
+  const chip = (code: string) => { const text = note?.(code); return <span key={code}><RouteChip code={code} route={routes.find(r => r.route_short_name === code)}/>{text !== undefined && <span className="chip-note">{text}</span>}</span>; };
+  return <div className="route-chip-list"><p className="meta">{label}{showCount && <> · {sorted.length} {sorted.length === 1 ? 'route' : 'routes'}</>}</p><div className="chip-wrap">{sorted.slice(0,limit).map(chip)}</div>{sorted.length > limit && <details><summary>Show all {sorted.length} routes</summary><div className="chip-wrap">{sorted.slice(limit).map(chip)}</div></details>}</div>;
 }
 export function StopName({name}: {name: string}) { return <span>{name || 'Stop name unavailable'}</span>; }
 export function TimeLabel({value, dateOnly = false}: {value?: string | null; dateOnly?: boolean}) {

@@ -165,6 +165,7 @@ details.data-fallback summary { color: var(--maroon); text-decoration: underline
 .route-chip > span { overflow-wrap: anywhere; }
 .route-chip-list { margin-top: 18px; }
 .route-chip-list > p { margin-bottom: 10px; }
+.chip-note { font-size: 13px; color: var(--ink-3); margin-left: 4px; }
 .chip-wrap { display: flex; flex-wrap: wrap; gap: 10px 18px; }
 .chip-wrap .route-chip { padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .chip-wrap .route-chip > span { padding-right: 5px; }

@@ -1,8 +1,8 @@
-import {cleanText, parseUtc, readableName} from '../format';
+import {cleanText, compareRoutes, parseUtc, readableName} from '../format';
 import type {Route} from '../format';
 import {AboutThisData, Badge, EmptyState, PageHeader, RouteChipList, Status, StopName, TimeLabel, useApi} from '../ui';
 
-type Event = {event_id: string | number; title: string; start_ts: string; end_ts?: string; venue_key?: string; venue_name?: string; significance?: number; time_tba?: boolean; affected_routes?: string[]; impacts?: {event_uplift: number}[]};
+type Event = {event_id: string | number; title: string; start_ts: string; end_ts?: string; venue_key?: string; venue_name?: string; significance?: number; time_tba?: boolean; affected_routes?: string[]; route_distances?: Record<string, number>; impacts?: {event_uplift: number}[]};
 type Alert = {title: string; text: string; routes?: string[]; start_ts?: string; end_ts?: string; closed_stop_names?: string[]};
 export default function Events() {
   const events = useApi<{data: Event[]; source: string}>('/api/events/impacts');
@@ -25,7 +25,7 @@ export default function Events() {
       <p className="meta">{e.venue_name || readableName(e.venue_key) || 'Venue to be announced'}</p>
       <p><strong>Expected impact:</strong> {(e.significance ?? 0) >= 14 ? 'Buses near the venue may be much busier.' : (e.significance ?? 0) >= 10 ? 'Expect busier buses near the venue.' : 'Some extra riders near the venue.'} <Badge kind="SIMULATED"/></p>
       {!!e.impacts?.length && <p>Modelled increase: about {Math.round(Math.max(...e.impacts.map(p => p.event_uplift))*100)} percentage points at the busiest nearby route.</p>}
-      <RouteChipList codes={e.affected_routes ?? []} routes={routes.data} label="Stops within about a 7 min walk"/>
+      <RouteChipList codes={[...new Set(e.affected_routes ?? [])].sort((a,b) => (e.route_distances?.[a] ?? Infinity) - (e.route_distances?.[b] ?? Infinity) || compareRoutes(a,b))} routes={routes.data} ordered showCount={false} note={code => { const m = e.route_distances?.[code]; return m == null ? undefined : `${Math.max(1, Math.round(m / 80))} min walk`; }} label={`Closest routes first · ${new Set(e.affected_routes ?? []).size} within about a 7 min walk`}/>
     </article>)}</div>
     <section aria-labelledby="alerts-heading"><h2 id="alerts-heading">Service alerts</h2><p className="meta">Current and upcoming detours from Texas A&M Transportation Services.</p>
       <Status loading={alerts.loading} error={alerts.error}/>

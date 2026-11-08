@@ -372,6 +372,7 @@ def test_comparison_and_impacts_endpoints(monkeypatch):
     impacts = client.get("/api/events/impacts").json()
     game = next(e for e in impacts["data"] if e["event_id"] == "tennessee-2026-11-14")
     assert game["affected_routes"] and game["time_tba"]
+    assert set(game["route_distances"]) == set(game["affected_routes"])
     assert game["impact_provenance"] == "SIMULATED PRIOR"
     assert game["impacts"] == []  # Local mocks must not invent game-day impact.
 
@@ -478,3 +479,16 @@ def test_alert_stop_names_and_event_venue_are_readable(monkeypatch):
     assert datasets.get("alerts")["data"][0]["closed_stop_names"] == [stop["stop_name"]]
     monkeypatch.setattr("app.backend.datasets.affected", lambda event: [])
     assert datasets.get("events")["data"][0]["venue_name"] == "Rudder Theatre"
+
+
+def test_event_route_distances():
+    from app.backend.datasets import affected, route_distances
+
+    event = {"lat": 30.61025, "lon": -96.34072}
+    distances = route_distances(event)
+    routes = affected(event)
+    assert routes
+    assert [distances[r] for r in routes] == sorted(distances.values())
+    assert all(m <= 600 for m in distances.values())
+    assert route_distances({"lon": -96.34072}) == {}
+    assert affected({"lon": -96.34072}) == []
