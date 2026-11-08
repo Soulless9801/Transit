@@ -76,6 +76,12 @@ test('freshness status is explicit for unknown, delayed, stale and fallback data
   assert.equal(freshnessLevel({...fresh, scoring_age_s: 1801}), 'amber');
   assert.equal(freshnessLevel({...fresh, pipeline_lag_s: 2401}), 'amber');
   for (const values of [{bus_snapshot_age_s: 601}, {scoring_age_s: 3601}, {pipeline_lag_s: 7201}, {bus_source: 'local-snapshot'}, {pipeline_lag_s: null}]) assert.equal(freshnessLevel({...fresh, ...values}), 'red');
+  // Outside scheduled service, stale forecasts/pipeline are expected; only the collector is judged.
+  const night = {...fresh, scoring_age_s: 30000, pipeline_lag_s: 4500, in_service: false, data_expected: false};
+  assert.equal(freshnessLevel(night), 'idle');
+  assert.equal(freshnessLevel({...night, bus_snapshot_age_s: 601}), 'red');
+  assert.equal(freshnessLevel({...night, in_service: true}), 'ok');
+  assert.equal(freshnessLevel({...night, data_expected: true}), 'red');
   assert.deepEqual([null, NaN, 0, 59, 60, 3600].map(ageLabel), ['unknown', 'unknown', '0s', '59s', '1m', '1.0h']);
 });
 

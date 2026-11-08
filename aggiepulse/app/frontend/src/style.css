@@ -689,6 +689,7 @@ details.data-fallback summary {
 .freshness strong, .freshness span { display: block; }
 .freshness--amber { background: #fff7e5; border-color: #a96800; }
 .freshness--red { background: #fff0ee; border-color: #9b2727; }
+.freshness--idle { background: #f3f4f6; border-color: #7b8490; }
 .live aside { width: 340px; overflow-y: auto; }
 .live .route-list { flex: none; overflow: visible; }
 .live select { max-width: 100%; min-height: 38px; margin-bottom: 10px; }

@@ -19,9 +19,10 @@ export default function FreshnessChip() {
     return () => { controller.abort(); clearInterval(timer); };
   }, []);
   const scoring = parseUtc(freshness?.last_scoring_ts);
+  const next = parseUtc(freshness?.next_scheduled_ts);
   const level = error ? 'red' : freshness ? freshnessLevel(freshness) : 'amber';
   return <div className={`freshness freshness--${level}`} role="status" aria-live="polite">
-    <strong>{error ? 'Status unavailable' : level === 'ok' ? 'Data current' : level === 'red' ? 'Data stale / unavailable' : 'Data delayed'}</strong>
+    <strong>{error ? 'Status unavailable' : level === 'idle' ? `No buses scheduled${next ? ` · next ${formatDateTime(next)} CT` : ''}` : level === 'ok' ? 'Data current' : level === 'red' ? 'Data stale / unavailable' : 'Data delayed'}</strong>
     <span>Bus {ageLabel(freshness?.bus_snapshot_age_s)} · Scored {scoring ? `${formatDateTime(scoring)} CT` : 'unknown'} · Pipeline lag {ageLabel(freshness?.pipeline_lag_s)}</span>
   </div>;
 }
