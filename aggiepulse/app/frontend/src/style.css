@@ -26,9 +26,9 @@ header { background: white; border-bottom: 1px solid #ddd; display: flex; align-
 .brand span { font-weight: 400; }
 .brand small { display: block; font-size: 9px; letter-spacing: 2.2px; color: var(--ink-3); margin-top: 4px; }
 nav { display: flex; gap: 6px; }
-nav button { background: none; border: 0; padding: 13px 17px; border-radius: var(--radius); min-height: 44px; color: var(--ink-2); }
-nav button.active { background: var(--maroon-50); color: var(--maroon); font-weight: 650; box-shadow: inset 0 -2px 0 var(--maroon); }
-nav button[aria-current="page"] { background: var(--maroon-50); color: var(--maroon); font-weight: 650; box-shadow: inset 0 -2px 0 var(--maroon); }
+nav a { display: inline-flex; align-items: center; text-decoration: none; background: none; border: 0; padding: 13px 17px; border-radius: var(--radius); min-height: 44px; color: var(--ink-2); }
+nav a.active { background: var(--maroon-50); color: var(--maroon); font-weight: 650; box-shadow: inset 0 -2px 0 var(--maroon); }
+nav a[aria-current="page"] { background: var(--maroon-50); color: var(--maroon); font-weight: 650; box-shadow: inset 0 -2px 0 var(--maroon); }
 
 /* Freshness chip */
 .freshness { border: 1px solid var(--ok); max-width: 310px; font-size: 12px; border-radius: 7px; padding: 8px 12px; flex-shrink: 0; }
@@ -214,7 +214,7 @@ nav { margin-left: auto; }
 @media (max-width: 800px) {
 header { padding: 16px; gap: 12px; flex-direction: row; align-items: center; }
 nav { display: flex; justify-content: flex-start; overflow: visible; width: 100%; margin: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; gap: 2px; }
-nav button { white-space: nowrap; font-size: 14px; flex-shrink: 0; padding: 8px 6px; }
+nav a { white-space: nowrap; font-size: 14px; flex-shrink: 0; padding: 8px 6px; }
 .live { min-height: 0; flex-direction: column; height: auto; }
 aside { width: 230px; padding: 18px 12px; }
 .legend { left: 8px; bottom: 25px; right: 8px; }
