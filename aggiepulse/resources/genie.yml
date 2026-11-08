@@ -1,0 +1,8 @@
+# Supported by Databricks CLI v1.24.0 (bundle schema checked).
+resources:
+  genie_spaces:
+    aggiepulse_analyst:
+      title: AggiePulse Transit Analyst
+      description: TAMU transit operations, measured APC crowding, GPS service quality and explicitly separated simulated priors.
+      file_path: ../dashboards/aggiepulse_analyst.geniespace.json
+      warehouse_id: ${var.warehouse_id}
