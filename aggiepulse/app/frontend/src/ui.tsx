@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {LOAD_SCALE, loadStep, pct, formatTime} from './format';
+import {LOAD_SCALE, loadStep, pct, formatTime, parseUtc, formatDateTime} from './format';
 import type {Series} from './format';
 
 export function useApi<T>(url: string | null): {data: T | undefined; error: string; loading: boolean} {
@@ -57,4 +57,29 @@ export function LineChart({series, ariaLabel}: {series: Series[]; ariaLabel: str
     {ticks.map((t, i) => <g key={i}><line x1={x(t)} x2={x(t)} y1="240" y2="245" stroke="#5f5b5d"/><text x={x(t)} y="260" textAnchor="middle">{formatTime(new Date(t))}</text></g>)}<text x="468" y="278" textAnchor="middle">Time (Central)</text>
     {series.map((s, i) => <g key={s.direction}><polyline fill="none" stroke={style(i).color} strokeWidth="3" strokeDasharray={style(i).dash} points={s.points.map(p => `${x(p.t.getTime())},${y(p.p90)}`).join(' ')}/>{s.points.map((p, j) => <circle key={j} cx={x(p.t.getTime())} cy={y(p.p90)} r="4" fill={style(i).color}/>)}</g>)}
   </svg><ul>{series.map((s, i) => <li key={s.direction}><svg width="30" height="10" viewBox="0 0 30 10" aria-hidden="true" style={{width: 30, height: 10}}><line x1="0" x2="30" y1="5" y2="5" stroke={style(i).color} strokeWidth="3" strokeDasharray={style(i).dash}/></svg> {s.label}</li>)}</ul><details className="data-fallback"><summary>Show data table</summary><table className="data-table"><thead><tr><th>Direction</th><th>Time</th><th>p90 load</th><th>Pings</th></tr></thead><tbody>{series.flatMap(s => s.points.map((p, i) => <tr key={`${s.direction}-${i}`}><td>{s.label}</td><td>{formatTime(p.t)}</td><td>{pct(p.p90)}</td><td>{p.n}</td></tr>))}</tbody></table></details></figure>;
+}
+
+export function ComparisonChart({rows}: {rows: import('./format').ComparisonRow[]}) {
+  const times = rows.map(r => parseUtc(r.target_window_start)!.getTime());
+  const min = Math.min(...times), max = Math.max(...times);
+  const x = (t: number) => min === max ? 468 : 56 + (t - min) / (max - min) * 824;
+  const y = (v: number) => 240 - Math.max(0, Math.min(1, v)) * 220;
+  const directions = [...new Set(rows.map(r => r.direction_id))];
+  const stamp = (r: typeof rows[number]) => parseUtc(r.target_window_start)!.getTime();
+  return <figure className="chart"><svg viewBox="0 0 900 280" role="img" aria-label="Predicted median and p10 to p90 band compared with observed p90 onboard load, by target window">
+    {[0, 0.25, 0.5, 0.75, 1].map(v => <g key={v}><line x1="56" x2="880" y1={y(v)} y2={y(v)} stroke="#dfd8d3"/><text x="48" y={y(v) + 4} textAnchor="end">{pct(v)}</text></g>)}
+    {directions.map((direction, i) => {
+      const points = rows.filter(r => r.direction_id === direction);
+      return <g key={direction}>
+        <polygon fill={i % 2 ? '#a96800' : '#500000'} fillOpacity="0.14" points={[...points.map(r => `${x(stamp(r))},${y(r.pred_p90)}`), ...[...points].reverse().map(r => `${x(stamp(r))},${y(r.pred_p10)}`)].join(' ')}/>
+        <polyline fill="none" stroke="#500000" strokeWidth="2" strokeDasharray={i % 2 ? '2 4' : '8 5'} points={points.map(r => `${x(stamp(r))},${y(r.pred_p50)}`).join(' ')}/>
+        <polyline fill="none" stroke={i % 2 ? '#a96800' : '#17623d'} strokeWidth="3" points={points.map(r => `${x(stamp(r))},${y(r.actual_p90_load!)}`).join(' ')}/>
+        {points.map((r, j) => <circle key={j} r="3" fill={i % 2 ? '#a96800' : '#17623d'} cx={x(stamp(r))} cy={y(r.actual_p90_load!)}/>)}
+      </g>;
+    })}
+    {[min, min + (max - min) / 2, max].map((t, i) => <text key={i} x={x(t)} y="260" textAnchor="middle">{formatTime(new Date(t))}</text>)}
+    <text x="468" y="278" textAnchor="middle">Target window (Central)</text>
+  </svg><figcaption>Shaded: predicted p10–p90. Dashed maroon: predicted median. Solid green / amber: observed p90 by direction. Hovering is not required; all values are in the table below.</figcaption>
+    <details className="data-fallback"><summary>Show comparison data</summary><div className="table-scroll"><table className="data-table"><caption>Aligned forecast and observed load; n = observed pings per window</caption><thead><tr><th scope="col">Direction</th><th scope="col">Target (Central)</th><th scope="col">p10</th><th scope="col">Median</th><th scope="col">p90</th><th scope="col">Observed p90</th><th scope="col">n</th></tr></thead><tbody>{rows.map((r, i) => <tr key={i}><th scope="row">{r.direction_name || `Direction ${r.direction_id}`}</th><td>{formatDateTime(new Date(stamp(r)))}</td><td>{pct(r.pred_p10)}</td><td>{pct(r.pred_p50)}</td><td>{pct(r.pred_p90)}</td><td>{pct(r.actual_p90_load)}</td><td>{r.actual_n_pings}</td></tr>)}</tbody></table></div></details>
+  </figure>;
 }

@@ -181,11 +181,39 @@ class DatabricksBackend:
             "SELECT * FROM transit.silver.events"
             " WHERE start_ts BETWEEN current_timestamp()"
             " AND current_timestamp() + INTERVAL 7 DAYS"
-            " AND NOT coalesce(is_canceled, false)"
+            " AND NOT coalesce(is_canceled, false) AND coalesce(significance, 0) >= 5"
             " ORDER BY significance DESC LIMIT 10000"
         ),
         "alerts": "SELECT * FROM transit.silver.service_alerts LIMIT 10000",
         "predictions": "SELECT * FROM transit.gold.predictions_latest LIMIT 10000",
+        "replay": (
+            "SELECT vehicle_id, route_short_name, direction_key, ts_gps, lat, lon,"
+            " onboard, capacity, load_factor FROM transit.silver.vehicle_pings"
+            " WHERE data_origin = 'observed' AND lat IS NOT NULL AND lon IS NOT NULL"
+            " AND ts_gps >= (SELECT max(ts_gps) FROM transit.silver.vehicle_pings"
+            " WHERE data_origin = 'observed') - make_interval(0, 0, 0, 0, :hours)"
+            " QUALIFY row_number() OVER (PARTITION BY vehicle_id, date_trunc('minute', ts_gps)"
+            " ORDER BY ts_gps DESC, ingest_ts DESC) = 1"
+            " ORDER BY ts_gps DESC, vehicle_id LIMIT 10000"
+        ),
+        "comparison": (
+            "SELECT * FROM transit.gold.pred_vs_actual"
+            " WHERE actual_data_origin = 'observed' AND actual_p90_load IS NOT NULL"
+            " AND actual_n_pings > 0 AND target_window_start + INTERVAL 15 MINUTES"
+            " <= current_timestamp()"
+            " QUALIFY row_number() OVER (PARTITION BY route_short_name, direction_id,"
+            " horizon_min, target_window_start ORDER BY scoring_ts DESC) = 1"
+            " ORDER BY target_window_start DESC LIMIT 10000"
+        ),
+        "route_directions": (
+            "SELECT route_short_name, route_id, direction_id, direction_key, shape_id"
+            " FROM transit.silver.route_direction_map WHERE is_selected LIMIT 10000"
+        ),
+        "pipeline": (
+            "SELECT max(ts_gps) AS latest_pipeline_gps_ts,"
+            " max(ingest_ts) AS latest_pipeline_ingest_ts"
+            " FROM transit.silver.vehicle_pings WHERE data_origin = 'observed'"
+        ),
         "history": (
             "SELECT * FROM transit.gold.route_dir_15m"
             " WHERE data_origin = 'observed'"
@@ -200,16 +228,20 @@ class DatabricksBackend:
         config = (
             Config(http_timeout_seconds=10, retry_timeout_seconds=10)
             if os.getenv("DATABRICKS_CLIENT_ID")
-            else Config(profile="transit", http_timeout_seconds=10, retry_timeout_seconds=10)
+            else Config(
+                profile="transit", http_timeout_seconds=10, retry_timeout_seconds=10
+            )
         )
         return WorkspaceClient(config=config)
 
     def hot_snapshot(self):
-        response = self.client().files.download('/Volumes/transit/raw/live/latest_vehicles.json')
+        response = self.client().files.download(
+            "/Volumes/transit/raw/live/latest_vehicles.json"
+        )
         with response.contents as stream:
             return json.load(stream)
 
-    def query(self, dataset):
+    def query(self, dataset, parameters=None):
         statement = self.QUERIES.get(dataset)
         if statement is None:
             raise ValueError(f"Unknown dataset: {dataset!r}")
@@ -217,6 +249,7 @@ class DatabricksBackend:
         result = client.statement_execution.execute_statement(
             warehouse_id=os.getenv("DATABRICKS_WAREHOUSE_ID", "3c5b1dbf21774cde"),
             statement=statement,
+            parameters=parameters,
             wait_timeout="50s",
         )
         if not result.status or result.status.state.value != "SUCCEEDED":

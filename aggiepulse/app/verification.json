@@ -1,0 +1,152 @@
+{
+  "verified_at_utc": "2026-11-08T00:15:02.677461+00:00",
+  "app": "https://aggiepulse-7474654155800707.aws.databricksapps.com",
+  "endpoints": {
+    "/api/health": {
+      "status": 200
+    },
+    "/api/vehicles/latest": {
+      "status": 200,
+      "rows": 0,
+      "sources": []
+    },
+    "/api/predictions": {
+      "status": 200,
+      "rows": 2,
+      "sources": [
+        "databricks"
+      ]
+    },
+    "/api/history": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 10000
+    },
+    "/api/history/comparison": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 68,
+      "largest_route_horizon_n": 4,
+      "observed_actuals_only": true
+    },
+    "/api/replay?hours=24": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 2105,
+      "hours": 24,
+      "start_ts": "2026-11-07T19:31:53+00:00",
+      "end_ts": "2026-11-07T23:56:44+00:00",
+      "capped": false,
+      "row_cap": 10000,
+      "mode": "REPLAY",
+      "one_position_per_vehicle_minute": true
+    },
+    "/api/replay?hours=1": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 338,
+      "hours": 1,
+      "start_ts": "2026-11-07T22:56:44+00:00",
+      "end_ts": "2026-11-07T23:56:44+00:00",
+      "capped": false,
+      "row_cap": 10000,
+      "mode": "REPLAY",
+      "one_position_per_vehicle_minute": true
+    },
+    "/api/replay?hours=0": {
+      "status": 422
+    },
+    "/api/events/impacts": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 8,
+      "route_mapping_source": "databricks",
+      "game_affected_routes": [
+        "15",
+        "47",
+        "03",
+        "04",
+        "01",
+        "26",
+        "12",
+        "06",
+        "35",
+        "27",
+        "40",
+        "41",
+        "07",
+        "03-05",
+        "01-04",
+        "08",
+        "22",
+        "31",
+        "40-41",
+        "34",
+        "36",
+        "05"
+      ],
+      "game_mapped_directions": 23,
+      "game_impacts": 0,
+      "events_with_uplift": 0
+    },
+    "/api/meta": {
+      "status": 200,
+      "freshness": {
+        "bus_snapshot_age_s": 26.892621,
+        "bus_source": "hot-path",
+        "last_scoring_ts": "2026-11-07T23:23:39.116000+00:00",
+        "scoring_age_s": 3082.603184,
+        "latest_pipeline_gps_ts": "2026-11-07T23:56:44+00:00",
+        "latest_pipeline_ingest_ts": "2026-11-07T23:57:00.423000+00:00",
+        "pipeline_lag_s": 1097.719184,
+        "pipeline_source": "databricks"
+      },
+      "fallback_reasons": {}
+    },
+    "/api/routes": {
+      "status": 200,
+      "rows": 22,
+      "sources": [
+        "None"
+      ]
+    },
+    "/api/stops": {
+      "status": 200,
+      "stops": 203
+    },
+    "/api/alerts": {
+      "status": 200,
+      "source": "databricks",
+      "fallback_reason": null,
+      "rows": 8
+    }
+  },
+  "frontend_status": 200,
+  "frontend_assets": {
+    "/assets/index-DSFG1sIX.js": {
+      "status": 200,
+      "matches_local_build": true,
+      "content_type": "text/javascript; charset=utf-8"
+    },
+    "/assets/index-BpAeeaTI.css": {
+      "status": 200,
+      "matches_local_build": true,
+      "content_type": "text/css; charset=utf-8"
+    },
+    "/assets/maplibre-gl-worker-CMkqA50c.mjs": {
+      "status": 200,
+      "matches_local_build": true,
+      "content_type": "text/javascript; charset=utf-8"
+    },
+    "/assets/LiveMap-EmP9P_aP.js": {
+      "status": 200,
+      "matches_local_build": true,
+      "content_type": "text/javascript; charset=utf-8"
+    }
+  }
+}

@@ -23,7 +23,7 @@ export function contrastRatio(a: string, b: string): number {
 }
 export function parseUtc(ts: string | null | undefined): Date | null {
   if (!ts?.trim()) return null;
-  const value = ts.trim().replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/, '$1T$2Z');
+  const value = ts.trim().replace(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/, '$1T$2Z');
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -94,4 +94,64 @@ export function hotspotGrid(rows: HistoryRow[], maxSlots = 12): HotspotGrid {
     routeCells[time] = {p90: previous ? Math.max(previous.p90, row.p90_load_factor) : row.p90_load_factor, n: (previous?.n ?? 0) + (row.n_pings ?? 0)};
   }
   return {slots, routes, cells};
+}
+
+export const MAP_LOAD_SCALE = [
+  {color: '#238451', label: 'Under 50%'},
+  {color: '#a96800', label: '50–74%'},
+  {color: '#cf3f46', label: '75%+'},
+  {color: '#7b8490', label: 'No data'},
+];
+export function crowdColor(value: number | null | undefined): string {
+  return MAP_LOAD_SCALE[value == null || !Number.isFinite(value) ? 3 : value < 0.5 ? 0 : value < 0.75 ? 1 : 2].color;
+}
+export type Prediction = {
+  route: string; direction: string; direction_name?: string; horizon_min: number;
+  pred_p10: number; pred_p50: number; pred_p90: number; provenance?: string;
+  scoring_ts?: string; training_data_origin?: string;
+  top_factors?: {family: string; feature: string; contribution: number}[];
+};
+export function routeLoad(predictions: Prediction[], route: string, horizon = 30): number | null {
+  const values = predictions.filter(p => p.route === route && p.horizon_min === horizon)
+    .map(p => p.pred_p50).filter(v => v != null && Number.isFinite(v));
+  return values.length ? Math.max(...values) : null;
+}
+export type ReplayPosition = {vehicle_id: string; ts_gps: string | null};
+export function replayFrame<T extends ReplayPosition>(rows: T[], cursor: number): T[] {
+  const latest = new Map<string, {time: number; row: T}>();
+  for (const row of rows) {
+    const time = parseUtc(row.ts_gps)?.getTime();
+    if (time == null || time > cursor || cursor - time > 120000) continue;
+    if (!latest.has(row.vehicle_id) || latest.get(row.vehicle_id)!.time < time) latest.set(row.vehicle_id, {time, row});
+  }
+  return [...latest.values()].map(v => v.row);
+}
+export function ageLabel(seconds: number | null | undefined): string {
+  if (seconds == null || !Number.isFinite(seconds)) return 'unknown';
+  return seconds < 60 ? `${Math.floor(Math.max(0, seconds))}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : `${(seconds / 3600).toFixed(1)}h`;
+}
+export type Freshness = {
+  bus_snapshot_age_s: number | null; bus_source: string; last_scoring_ts: string | null;
+  scoring_age_s: number | null; pipeline_lag_s: number | null;
+};
+export function freshnessLevel(f: Freshness): 'ok' | 'amber' | 'red' {
+  if (f.bus_snapshot_age_s == null || f.scoring_age_s == null || f.pipeline_lag_s == null ||
+      f.bus_source === 'local-snapshot' || f.bus_snapshot_age_s > 600 || f.scoring_age_s > 3600 || f.pipeline_lag_s > 7200) return 'red';
+  return f.bus_snapshot_age_s > 180 || f.scoring_age_s > 1800 || f.pipeline_lag_s > 2400 ? 'amber' : 'ok';
+}
+export type ComparisonRow = {
+  route_short_name: string; direction_id: string; direction_name?: string; horizon_min: number;
+  target_window_start: string; pred_p10: number; pred_p50: number; pred_p90: number;
+  actual_p90_load: number | null; actual_n_pings: number; actual_data_origin: string;
+};
+export function comparisonRows(rows: ComparisonRow[], route: string, horizon: number): ComparisonRow[] {
+  return rows.filter(r => r.route_short_name === route && r.horizon_min === horizon &&
+    r.actual_data_origin === 'observed' && r.actual_n_pings > 0 && parseUtc(r.target_window_start) &&
+    [r.actual_p90_load, r.pred_p10, r.pred_p50, r.pred_p90].every(v => v != null && Number.isFinite(v)))
+    .sort((a, b) => parseUtc(a.target_window_start)!.getTime() - parseUtc(b.target_window_start)!.getTime());
+}
+export function comparisonMetrics(rows: ComparisonRow[]): {n: number; mae: number | null; coverage: number | null} {
+  const n = rows.length;
+  return {n, mae: n ? rows.reduce((s, r) => s + Math.abs(r.pred_p50 - r.actual_p90_load!), 0) / n : null,
+    coverage: n ? rows.filter(r => r.actual_p90_load! >= r.pred_p10 && r.actual_p90_load! <= r.pred_p90).length / n : null};
 }

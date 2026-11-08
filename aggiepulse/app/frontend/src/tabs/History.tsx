@@ -1,15 +1,18 @@
 import {cloneElement, useMemo, useState} from 'react';
 import {
   compareRoutes,
+  comparisonRows,
+  comparisonMetrics,
   formatDateTime,
   formatTime,
   historySeries,
   hotspotGrid,
   parseUtc,
 } from '../format';
-import type {HistoryRow} from '../format';
+import type {ComparisonRow, HistoryRow} from '../format';
 import {
   LineChart,
+  ComparisonChart,
   LoadCell,
   LoadLegend,
   PageHeader,
@@ -24,6 +27,8 @@ type ApiHistoryRow = HistoryRow & {
 };
 
 export default function History() {
+  const comparison = useApi<{data: ComparisonRow[]; source: string}>('/api/history/comparison');
+  const [horizon, setHorizon] = useState(30);
   const history = useApi<{data: ApiHistoryRow[]; source: string}>('/api/history');
 
   const rows = useMemo(() => {
@@ -32,8 +37,8 @@ export default function History() {
   }, [history.data]);
 
   const routes = useMemo(() => {
-    return [...new Set(rows.map(r => r.route_short_name))].sort(compareRoutes);
-  }, [rows]);
+    return [...new Set([...rows.map(r => r.route_short_name), ...(comparison.data?.data ?? []).map(r => r.route_short_name)])].sort(compareRoutes);
+  }, [rows, comparison.data]);
 
   const defaultRoute = useMemo(() => {
     if (routes.length === 0) return '';
@@ -81,6 +86,8 @@ export default function History() {
   }, [routeRows]);
 
   const grid = useMemo(() => hotspotGrid(rows), [rows]);
+  const aligned = comparisonRows(comparison.data?.data ?? [], route, horizon);
+  const metrics = comparisonMetrics(aligned);
 
   return (
     <main className="dashboard" aria-labelledby="page-title">
@@ -120,9 +127,16 @@ export default function History() {
         ariaLabel={`Observed p90 load for route ${route}, by 15-minute window`}
       />
 
-      <p className="meta">
-        Predicted-vs-observed comparison will appear once forecasts are archived; no historical forecasts exist yet.
-      </p>
+      <section className="section" aria-labelledby="comparison-heading">
+        <h2 id="comparison-heading">Predicted vs observed</h2>
+        <SourceLine kinds={['PREDICTED', 'MEASURED · APC']} source={comparison.data?.source}/>
+        <p className="meta">Forecast load compared with observed p90 for completed 15-minute windows. One latest forecast per route, direction, target and horizon. Training may include simulated data; actuals are observed only.</p>
+        <label className="field">Forecast horizon<select value={horizon} onChange={e => setHorizon(Number(e.target.value))}>{[15, 30, 60].map(h => <option key={h} value={h}>+{h} minutes</option>)}</select></label>
+        <Status loading={comparison.loading} error={comparison.error}/>
+        {!comparison.loading && !comparison.error && (metrics.n < 5 ?
+          <p role="status">n = {metrics.n} aligned route-direction windows. At least 5 are needed to show a comparison and provisional error metrics. More completed forecasts are needed; missing comparisons are not filled with simulated actuals.</p> :
+          <><p>MAE: {((metrics.mae ?? 0) * 100).toFixed(1)} load percentage points · p10–p90 coverage: {((metrics.coverage ?? 0) * 100).toFixed(1)}% · n = {metrics.n} aligned route-direction windows.</p><p className="meta">These early metrics are provisional; windows may be correlated.</p><ComparisonChart rows={aligned}/></>)}
+      </section>
 
       <section className="section" aria-labelledby="recurring-hotspots-heading">
         <h2 id="recurring-hotspots-heading">Recurring hotspots</h2>
