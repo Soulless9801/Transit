@@ -1,4 +1,4 @@
-# ML workstream (Phase 6): manual training pipeline and 15-minute batch scoring.
+# ML workstream: nightly observed-aware training and 15-minute scoring/health.
 # Both jobs use the same pinned serverless environment so pickled LightGBM/pandas
 # objects trained by one load identically in the other.
 resources:
@@ -7,6 +7,12 @@ resources:
       name: aggiepulse-ml-train
       max_concurrent_runs: 1
       timeout_seconds: 5400
+      schedule:
+        quartz_cron_expression: "0 30 3 * * ?"
+        timezone_id: America/Chicago
+        pause_status: UNPAUSED
+      email_notifications:
+        on_failure: [jasonli2026@gmail.com]
       tasks:
         - task_key: refresh_ml_data
           run_job_task:
@@ -86,3 +92,25 @@ resources:
               - matplotlib==3.11.2
               - h3==4.5.0
               - PyYAML==6.0.3
+
+    ops_health:
+      name: aggiepulse-ops-health
+      max_concurrent_runs: 1
+      timeout_seconds: 840
+      schedule:
+        quartz_cron_expression: "0 12/15 * * * ?"
+        timezone_id: UTC
+        pause_status: UNPAUSED
+      email_notifications:
+        on_failure: [jasonli2026@gmail.com]
+      tasks:
+        - task_key: health
+          environment_key: ops
+          max_retries: 0
+          spark_python_task:
+            python_file: ../scripts/ops/health.py
+            parameters: [--spark, --ops-root, "${workspace.file_path}/scripts/ops", --catalog, "${var.catalog}"]
+      environments:
+        - environment_key: ops
+          spec:
+            environment_version: "4"

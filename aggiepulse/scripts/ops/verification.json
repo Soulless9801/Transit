@@ -1,0 +1,584 @@
+{
+  "verified_at_utc": "2026-11-08T00:17:50.013Z",
+  "tests": {
+    "full_suite": "223 passed, 1 skipped",
+    "ruff": "scoped paths clean"
+  },
+  "apc_quality": [
+    {
+      "vehicle_id": "bdd49e1a-fc67-4a5f-93dc-310da866638d",
+      "service_date": "2026-11-07",
+      "pings": "331",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "27.083333333333336"
+    },
+    {
+      "vehicle_id": "bd38f9e0-28f2-4630-9cc8-da7d7faf6aef",
+      "service_date": "2026-11-07",
+      "pings": "505",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "8.016666666666667"
+    },
+    {
+      "vehicle_id": "7fa8f332-cad3-4200-ae5e-d7c740e538a0",
+      "service_date": "2026-11-07",
+      "pings": "491",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "57b321f0-eb06-4d90-a5f7-e7758738c618",
+      "service_date": "2026-11-07",
+      "pings": "505",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "bdbbd6d7-b970-4999-9254-a23465160ce3",
+      "service_date": "2026-11-07",
+      "pings": "474",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "a93b5a3a-aff0-470f-a5fc-7339745b416b",
+      "service_date": "2026-11-07",
+      "pings": "488",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "1d66d52c-0a4d-45b7-a9ee-279b09a3ce19",
+      "service_date": "2026-11-07",
+      "pings": "386",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "448c7dc1-e837-4eff-939f-85baff75aacc",
+      "service_date": "2026-11-07",
+      "pings": "486",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    },
+    {
+      "vehicle_id": "bdefdc9b-a56b-471c-b162-3c54bf17eadc",
+      "service_date": "2026-11-07",
+      "pings": "504",
+      "over_capacity_pings": "0",
+      "stuck_minutes": "0.0"
+    }
+  ],
+  "apc_flagged_vehicles": [
+    {
+      "vehicle_name": "5393",
+      "stuck_pings": "16",
+      "stuck_minutes": "8.016666666666667",
+      "max_flat_minutes": "67.95",
+      "stuck_onboard": "0",
+      "stuck_onboard_max": "0"
+    },
+    {
+      "vehicle_name": "B2010",
+      "stuck_pings": "54",
+      "stuck_minutes": "27.083333333333336",
+      "max_flat_minutes": "87.03333333333333",
+      "stuck_onboard": "0",
+      "stuck_onboard_max": "0"
+    }
+  ],
+  "health": [
+    {
+      "run_id": "2b49f72126094b938c4724701e45f9fa",
+      "checked_ts": "2026-11-08T00:15:50.334Z",
+      "status": "OK",
+      "service_expected": "false",
+      "collector_age_min": "11.333333",
+      "pipeline_lag_min": "7.5",
+      "scoring_age_min": "52.183333",
+      "last_collector_ts": "2026-11-08T00:04:30.068Z",
+      "last_silver_ts": "2026-11-07T23:57:00.423Z",
+      "last_scoring_ts": "2026-11-07T23:23:39.116Z",
+      "apc_pings": "4170",
+      "apc_stuck_minutes": "35.1",
+      "apc_over_capacity_pings": "0",
+      "error_message": null
+    }
+  ],
+  "jobs": {
+    "774343747660730": {
+      "name": "aggiepulse-ml-train",
+      "schedule": {
+        "pause_status": "UNPAUSED",
+        "quartz_cron_expression": "0 30 3 * * ?",
+        "timezone_id": "America/Chicago"
+      }
+    },
+    "26496438233032": {
+      "name": "aggiepulse-ml-score",
+      "schedule": {
+        "pause_status": "UNPAUSED",
+        "quartz_cron_expression": "0 8/15 * * * ?",
+        "timezone_id": "UTC"
+      }
+    },
+    "1036818537664803": {
+      "name": "aggiepulse-ops-health",
+      "schedule": {
+        "pause_status": "UNPAUSED",
+        "quartz_cron_expression": "0 12/15 * * * ?",
+        "timezone_id": "UTC"
+      }
+    },
+    "1009409173288336": {
+      "name": "aggiepulse-ml-data",
+      "schedule": null
+    },
+    "163479061178446": {
+      "name": "aggiepulse_ops_refresh",
+      "schedule": {
+        "pause_status": "UNPAUSED",
+        "quartz_cron_expression": "0 0/15 * * * ?",
+        "timezone_id": "UTC"
+      }
+    }
+  },
+  "pipeline_run_id": 701791023144484,
+  "training_run_id": 216813119104474,
+  "mlflow_run_id": "d56075208bed48769fdbc40640926736",
+  "laptop_processes": "Left running; launchd installer NOT run; no commit",
+  "promotion_gate": {
+    "promote": true,
+    "gate": "simulated",
+    "lightgbm_mae": 0.04820620014032713,
+    "b1_mae": 0.08176553518852077,
+    "b0_mae": 0.0800888588901409,
+    "n": 12646,
+    "comparisons": {
+      "simulated": {
+        "lightgbm_mae": 0.04820620014032713,
+        "b1_mae": 0.08176553518852077,
+        "b0_mae": 0.0800888588901409,
+        "n": 12646
+      },
+      "observed": {
+        "lightgbm_mae": 0.06666486068604224,
+        "b1_mae": 0.1236191566955848,
+        "b0_mae": 0.0766812290171315,
+        "n": 86
+      }
+    },
+    "observed_weekdays": 0,
+    "observed_min_n": 200,
+    "observed_min_weekdays": 2,
+    "rule": "LightGBM simulated holdout MAE < B1 at h30"
+  },
+  "calibration": {
+    "15": {
+      "method": "observed_split_conformal_widening",
+      "target_coverage": 0.8,
+      "calibration_n": 0,
+      "evaluation_n": 140,
+      "widening": 0.0,
+      "status": "insufficient_observed_calibration",
+      "coverage_before": 0.2785714285714286,
+      "coverage_after": 0.2785714285714286
+    },
+    "30": {
+      "method": "observed_split_conformal_widening",
+      "target_coverage": 0.8,
+      "calibration_n": 0,
+      "evaluation_n": 86,
+      "widening": 0.0,
+      "status": "insufficient_observed_calibration",
+      "coverage_before": 0.3023255813953488,
+      "coverage_after": 0.3023255813953488
+    },
+    "60": {
+      "method": "observed_split_conformal_widening",
+      "target_coverage": 0.8,
+      "calibration_n": 0,
+      "evaluation_n": 118,
+      "widening": 0.0,
+      "status": "insufficient_observed_calibration",
+      "coverage_before": 0.2966101694915254,
+      "coverage_after": 0.2966101694915254
+    }
+  },
+  "registration": {
+    "gate": {
+      "promote": true,
+      "gate": "simulated",
+      "lightgbm_mae": 0.04820620014032713,
+      "b1_mae": 0.08176553518852077,
+      "b0_mae": 0.0800888588901409,
+      "n": 12646,
+      "comparisons": {
+        "simulated": {
+          "lightgbm_mae": 0.04820620014032713,
+          "b1_mae": 0.08176553518852077,
+          "b0_mae": 0.0800888588901409,
+          "n": 12646
+        },
+        "observed": {
+          "lightgbm_mae": 0.06666486068604224,
+          "b1_mae": 0.1236191566955848,
+          "b0_mae": 0.0766812290171315,
+          "n": 86
+        }
+      },
+      "observed_weekdays": 0,
+      "observed_min_n": 200,
+      "observed_min_weekdays": 2,
+      "rule": "LightGBM simulated holdout MAE < B1 at h30"
+    },
+    "registered": {
+      "15": {
+        "name": "transit.ml.crowding_h15",
+        "version": "2",
+        "champion": true
+      },
+      "30": {
+        "name": "transit.ml.crowding_h30",
+        "version": "2",
+        "champion": true
+      },
+      "60": {
+        "name": "transit.ml.crowding_h60",
+        "version": "2",
+        "champion": true
+      }
+    }
+  },
+  "headline": [
+    {
+      "model": "B0",
+      "horizon": 15,
+      "origin": "simulated",
+      "n": 12681,
+      "mae": 0.0729674399,
+      "rmse": 0.1146134282,
+      "pinball_p50": 0.03648372,
+      "coverage_p10_p90": 0.8215440423,
+      "positives": 95,
+      "pr_auc": 0.07367065,
+      "brier": 0.0071397387,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B1",
+      "horizon": 15,
+      "origin": "simulated",
+      "n": 12681,
+      "mae": 0.0818230242,
+      "rmse": 0.1170769436,
+      "pinball_p50": 0.0409115121,
+      "coverage_p10_p90": 0.6355177037,
+      "positives": 95,
+      "pr_auc": 0.0213335562,
+      "brier": 0.0085116935,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 15,
+      "origin": "simulated",
+      "n": 12681,
+      "mae": 0.0469400462,
+      "rmse": 0.0752945042,
+      "pinball_p50": 0.0234700231,
+      "coverage_p10_p90": 0.716189575,
+      "positives": 95,
+      "pr_auc": 0.0992744637,
+      "brier": 0.0073336892,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B0",
+      "horizon": 30,
+      "origin": "simulated",
+      "n": 12646,
+      "mae": 0.0800888589,
+      "rmse": 0.1239140426,
+      "pinball_p50": 0.0400444294,
+      "coverage_p10_p90": 0.8204175233,
+      "positives": 95,
+      "pr_auc": 0.036231462,
+      "brier": 0.0073487063,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B1",
+      "horizon": 30,
+      "origin": "simulated",
+      "n": 12646,
+      "mae": 0.0817655352,
+      "rmse": 0.1170455148,
+      "pinball_p50": 0.0408827676,
+      "coverage_p10_p90": 0.6354578523,
+      "positives": 95,
+      "pr_auc": 0.0213804747,
+      "brier": 0.008530243,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 30,
+      "origin": "simulated",
+      "n": 12646,
+      "mae": 0.0482062001,
+      "rmse": 0.0788772849,
+      "pinball_p50": 0.0241031001,
+      "coverage_p10_p90": 0.7115293373,
+      "positives": 95,
+      "pr_auc": 0.0850226058,
+      "brier": 0.0072950755,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B0",
+      "horizon": 60,
+      "origin": "simulated",
+      "n": 12578,
+      "mae": 0.0748273832,
+      "rmse": 0.1199544855,
+      "pinball_p50": 0.0374136916,
+      "coverage_p10_p90": 0.8192876451,
+      "positives": 95,
+      "pr_auc": 0.0383067177,
+      "brier": 0.0074184346,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B1",
+      "horizon": 60,
+      "origin": "simulated",
+      "n": 12578,
+      "mae": 0.0817397346,
+      "rmse": 0.1170801965,
+      "pinball_p50": 0.0408698673,
+      "coverage_p10_p90": 0.6347591032,
+      "positives": 95,
+      "pr_auc": 0.021589053,
+      "brier": 0.0085554237,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 60,
+      "origin": "simulated",
+      "n": 12578,
+      "mae": 0.0490643091,
+      "rmse": 0.0831363096,
+      "pinball_p50": 0.0245321546,
+      "coverage_p10_p90": 0.7169661313,
+      "positives": 95,
+      "pr_auc": 0.0695421576,
+      "brier": 0.0074571495,
+      "conclusion": "simulated-prior evaluation (not evidence about real riders)"
+    },
+    {
+      "model": "B0",
+      "horizon": 15,
+      "origin": "observed",
+      "n": 140,
+      "mae": 0.0782649573,
+      "rmse": 0.1057193224,
+      "pinball_p50": 0.0391324786,
+      "coverage_p10_p90": 0.5857142857,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 7.11945e-05,
+      "conclusion": "observed evaluation"
+    },
+    {
+      "model": "B1",
+      "horizon": 15,
+      "origin": "observed",
+      "n": 140,
+      "mae": 0.1234365145,
+      "rmse": 0.1419966731,
+      "pinball_p50": 0.0617182572,
+      "coverage_p10_p90": 0.1857142857,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 0.0002389828,
+      "conclusion": "observed evaluation"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 15,
+      "origin": "observed",
+      "n": 140,
+      "mae": 0.071221451,
+      "rmse": 0.1000565458,
+      "pinball_p50": 0.0356107255,
+      "coverage_p10_p90": 0.2785714286,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 6.77e-08,
+      "conclusion": "observed evaluation"
+    },
+    {
+      "model": "B0",
+      "horizon": 30,
+      "origin": "observed",
+      "n": 86,
+      "mae": 0.076681229,
+      "rmse": 0.1082077609,
+      "pinball_p50": 0.0383406145,
+      "coverage_p10_p90": 0.7325581395,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 0.0002246544,
+      "conclusion": "n=86: too small to conclude anything"
+    },
+    {
+      "model": "B1",
+      "horizon": 30,
+      "origin": "observed",
+      "n": 86,
+      "mae": 0.1236191567,
+      "rmse": 0.1437044562,
+      "pinball_p50": 0.0618095783,
+      "coverage_p10_p90": 0.1744186047,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 0.0002998669,
+      "conclusion": "n=86: too small to conclude anything"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 30,
+      "origin": "observed",
+      "n": 86,
+      "mae": 0.0666648607,
+      "rmse": 0.0878186256,
+      "pinball_p50": 0.0333324303,
+      "coverage_p10_p90": 0.3023255814,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 1.3732e-06,
+      "conclusion": "n=86: too small to conclude anything"
+    },
+    {
+      "model": "B0",
+      "horizon": 60,
+      "origin": "observed",
+      "n": 118,
+      "mae": 0.060302502,
+      "rmse": 0.087548574,
+      "pinball_p50": 0.030151251,
+      "coverage_p10_p90": 0.7542372881,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 4.10722e-05,
+      "conclusion": "observed evaluation"
+    },
+    {
+      "model": "B1",
+      "horizon": 60,
+      "origin": "observed",
+      "n": 118,
+      "mae": 0.1108986215,
+      "rmse": 0.1339025455,
+      "pinball_p50": 0.0554493108,
+      "coverage_p10_p90": 0.1779661017,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 9.20066e-05,
+      "conclusion": "observed evaluation"
+    },
+    {
+      "model": "LightGBM",
+      "horizon": 60,
+      "origin": "observed",
+      "n": 118,
+      "mae": 0.0543911433,
+      "rmse": 0.070432274,
+      "pinball_p50": 0.0271955717,
+      "coverage_p10_p90": 0.2966101695,
+      "positives": 0,
+      "pr_auc": null,
+      "brier": 1e-10,
+      "conclusion": "observed evaluation"
+    }
+  ],
+  "delta_versions": {
+    "transit.gold.seasonal_profile": "10",
+    "transit.gold.training_set": "96"
+  },
+  "initial_health_startup_failure": {
+    "job_run_id": 805997751827020,
+    "reason": "Scheduled before new silver.apc_quality materialized; missing-table failure. Subsequent manual run succeeded; error rows now persist before raising."
+  },
+  "snapshot": {
+    "snapshot_id": "0ee04c76db754d45b9738a8d7f29ad42",
+    "label": "pre-demo-check",
+    "tables": 35,
+    "model_versions": {
+      "transit.ml.crowding_h15": {
+        "version": "2",
+        "run_id": "d56075208bed48769fdbc40640926736"
+      },
+      "transit.ml.crowding_h30": {
+        "version": "2",
+        "run_id": "d56075208bed48769fdbc40640926736"
+      },
+      "transit.ml.crowding_h60": {
+        "version": "2",
+        "run_id": "d56075208bed48769fdbc40640926736"
+      }
+    }
+  },
+  "restore_check": {
+    "snapshot_id": "0ee04c76db754d45b9738a8d7f29ad42",
+    "checked": 35,
+    "row_counts": {
+      "transit.gold.event_exposure": 241120,
+      "transit.gold.ops_health": 2,
+      "transit.gold.pred_vs_actual": 68,
+      "transit.gold.predictions": 105,
+      "transit.gold.predictions_latest": 2,
+      "transit.gold.route_dir_15m": 144341,
+      "transit.gold.route_dir_15m_sim": 241120,
+      "transit.gold.seasonal_profile": 2028,
+      "transit.gold.stop_15m": 1010,
+      "transit.gold.training_set": 240955,
+      "transit.silver.academic_days": 153,
+      "transit.silver.apc_quality": 9,
+      "transit.silver.class_periods": 32,
+      "transit.silver.events": 1713,
+      "transit.silver.events_evaluated": 8293,
+      "transit.silver.events_filter_stats": 8,
+      "transit.silver.gtfs_calendar_dates": 96,
+      "transit.silver.gtfs_routes": 22,
+      "transit.silver.gtfs_shapes": 2414,
+      "transit.silver.gtfs_stop_times": 57870,
+      "transit.silver.gtfs_stops": 203,
+      "transit.silver.gtfs_trips": 6312,
+      "transit.silver.headways": 850,
+      "transit.silver.ntd_monthly": 25,
+      "transit.silver.route_direction_map": 46,
+      "transit.silver.schedule_expanded": 1560184,
+      "transit.silver.service_alerts": 8,
+      "transit.silver.stop_visits": 850,
+      "transit.silver.tripspark_route_mismatches": 1,
+      "transit.silver.tripspark_routes": 41,
+      "transit.silver.vehicle_latest": 0,
+      "transit.silver.vehicle_pings": 4170,
+      "transit.silver.vehicle_pings_candidates": 4183,
+      "transit.silver.vehicle_pings_quarantine": 0,
+      "transit.silver.weather_hourly": 2887
+    }
+  },
+  "scoring_verification": {
+    "job_run_id": 667757322437106,
+    "state": "SUCCESS",
+    "champion_versions": {
+      "15": "2",
+      "30": "2",
+      "60": "2"
+    }
+  }
+}

@@ -16,6 +16,12 @@ import pandas as pd
 
 from aggiepulse.common.paths import LOCAL_TZ
 from aggiepulse.ml.baselines import Baselines
+from aggiepulse.ml.calibration import (
+    MIN_OBSERVED_N,
+    MIN_WEEKDAYS,
+    observed_partition,
+    weekday_count,
+)
 from aggiepulse.ml.evaluate import evaluate
 from aggiepulse.ml.model import CATEGORICAL, CrowdingModel, feature_columns
 
@@ -123,20 +129,35 @@ def predict_all(frame, model, baselines):
 
 def evaluate_models(frame, models, baselines):
     rows = []
-    test = holdout(frame)
     for horizon, model in models.items():
+        _, observed = observed_partition(frame, horizon)
+        test = pd.concat([holdout(frame).query("data_origin == 'simulated'"), observed], ignore_index=True)
         rows.extend(evaluate(test, predict_all(test, model, baselines[horizon]), horizon))
     return pd.DataFrame(rows)
 
 
-def promotion_gate(table, horizon=30):
-    """LightGBM is champion only if it beats B1 on simulated-test MAE at 30 min."""
-    gate = table[table.horizon.eq(horizon) & table.origin.eq('simulated') & table.group.eq('all')]
-    gate = gate.set_index('model')
-    lgbm, b1 = float(gate.loc['LightGBM', 'mae']), float(gate.loc['B1', 'mae'])
-    return {'promote': bool(lgbm < b1), 'lightgbm_mae': lgbm, 'b1_mae': b1,
-            'b0_mae': float(gate.loc['B0', 'mae']), 'n': int(gate.loc['LightGBM', 'n']),
-            'rule': f'LightGBM simulated-test MAE < B1 at h{horizon}'}
+def promotion_gate(table, frame=None, horizon=30):
+    """Observed h30 gate once >=200 evaluated labels span >=2 local weekdays."""
+    comparisons = {}
+    for origin in ('simulated', 'observed'):
+        subset = table[table.horizon.eq(horizon) & table.origin.eq(origin)
+                       & table.group.eq('all')].set_index('model')
+        def number(model, subset=subset):
+            value = subset.loc[model, 'mae'] if model in subset.index else None
+            return float(value) if value is not None and pd.notna(value) else None
+        comparisons[origin] = {'lightgbm_mae': number('LightGBM'), 'b1_mae': number('B1'),
+                               'b0_mae': number('B0'),
+                               'n': int(subset.loc['LightGBM', 'n']) if 'LightGBM' in subset.index else 0}
+    weekdays = weekday_count(observed_partition(frame, horizon)[1]) if frame is not None else 0
+    observed = comparisons['observed']
+    origin = 'observed' if observed['n'] >= MIN_OBSERVED_N and weekdays >= MIN_WEEKDAYS else 'simulated'
+    selected = comparisons[origin]
+    passed = (selected['lightgbm_mae'] is not None and selected['b1_mae'] is not None
+              and selected['n'] > 0 and selected['lightgbm_mae'] < selected['b1_mae'])
+    return {'promote': bool(passed), 'gate': origin, **selected, 'comparisons': comparisons,
+            'observed_weekdays': weekdays, 'observed_min_n': MIN_OBSERVED_N,
+            'observed_min_weekdays': MIN_WEEKDAYS,
+            'rule': f'LightGBM {origin} holdout MAE < B1 at h{horizon}'}
 
 
 def log_plots(frame, model, horizon):

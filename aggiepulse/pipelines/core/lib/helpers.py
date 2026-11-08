@@ -142,3 +142,23 @@ def closed_stop_codes(description):
     lists = re.findall(r'following bus stops? will be closed.*?<ul>(.*?)</ul>',
                        description or '', flags=re.IGNORECASE | re.DOTALL)
     return sorted(set(re.findall(r'\bID:\s*([^)<\s]+)', ' '.join(lists))))
+
+
+# APC movement is derived from GPS, not undocumented vendor speed units.
+APC_MAX_GAP_SECONDS = 120
+APC_STUCK_SECONDS = 3600
+
+
+def apc_stuck(elapsed_seconds, lat_span, lon_span, first_stop, last_stop):
+    """Conservative warning: >=60 min flat, >100m GPS span, >=2 close stops.
+
+    Callers break flat runs at count/capacity/route changes or gaps >120s.
+    Stops count only when the ping is within 50m of its nearest GTFS stop.
+    Min/max stop IDs establish at least two distinct stops, not a trip match.
+    """
+    import math
+
+    span_m = 111000 * math.hypot(float(lat_span or 0), float(lon_span or 0) * .86)
+    return bool(elapsed_seconds is not None and elapsed_seconds >= APC_STUCK_SECONDS
+                and span_m > 100 and first_stop is not None and last_stop is not None
+                and first_stop != last_stop)

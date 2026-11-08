@@ -19,6 +19,8 @@ import lib.helpers as _helpers
 
 importlib.reload(_helpers)
 from lib.helpers import (
+    APC_MAX_GAP_SECONDS,
+    apc_stuck,
     closed_stop_codes,
     gps_time_utc,
     normalize_event,
@@ -271,6 +273,7 @@ QUALITY = {
 
 @dp.materialized_view(name=name('silver', 'vehicle_pings_candidates'))
 @dp.expect_all(QUALITY)
+@dp.expect('apc_within_capacity', 'NOT apc_over_capacity')
 def ping_candidates():
     raw = (read('bronze', 'tripspark_vehicles')
            .withColumn('r', F.explode(F.from_json('payload', VEHICLES)))
@@ -295,6 +298,7 @@ def ping_candidates():
     return (pings.join(metadata, ['route_key', 'direction_key'], 'left')
             .withColumn('direction_name', F.coalesce('_direction_name', 'direction_name'))
             .drop('_direction_name').withColumn('load_factor', F.expr('try_divide(onboard, capacity)'))
+            .withColumn('apc_over_capacity', F.col('onboard') > F.col('capacity'))
             .withColumn('data_origin', F.lit('observed'))
             .withColumn('_normalization_revision', F.lit(CORE_REVISION)))
 
@@ -310,6 +314,8 @@ def quarantine():
 
 @dp.materialized_view(name=name('silver', 'vehicle_pings'))
 @dp.expect_all_or_drop(QUALITY)
+@dp.expect('apc_not_stuck', 'NOT apc_stuck')
+@dp.expect('apc_within_capacity', 'NOT apc_over_capacity')
 def vehicle_pings():
     frame = read('silver', 'vehicle_pings_candidates')
     frame = frame.where(' AND '.join(f'coalesce(({x}), false)' for x in QUALITY.values()))
@@ -323,11 +329,53 @@ def vehicle_pings():
         * F.pow(F.sin(F.radians(F.col('stop_lon') - F.col('lon')) / 2), 2))
     distances = distances.withColumn('nearest_stop_dist_m',
         12742000 * F.asin(F.sqrt(F.least(F.lit(1.0), F.col('_a')))))
-    return (distances.withColumn('_rank', F.row_number().over(
+    enriched = (distances.withColumn('_rank', F.row_number().over(
         Window.partitionBy('vehicle_id', 'ts_gps').orderBy('nearest_stop_dist_m', 'stop_id')))
         .where('_rank = 1').withColumnRenamed('stop_id', 'nearest_stop_id')
         .withColumn('h3_r10', F.expr('h3_longlatash3(lon, lat, 10)'))
         .drop('_rank', '_a', 'stop_lat', 'stop_lon', '_source_file', '_normalization_revision'))
+
+    order = Window.partitionBy('vehicle_id').orderBy('ts_gps')
+    previous = F.lag('ts_gps').over(order)
+    gap = F.col('ts_gps').cast('long') - previous.cast('long')
+    same = (F.col('onboard').eqNullSafe(F.lag('onboard').over(order))
+            & F.col('capacity').eqNullSafe(F.lag('capacity').over(order))
+            & F.col('route_key').eqNullSafe(F.lag('route_key').over(order)))
+    enriched = enriched.withColumn('_apc_gap', gap).withColumn('_apc_break',
+        F.when(previous.isNull() | (gap > APC_MAX_GAP_SECONDS) | ~same, 1).otherwise(0))
+    enriched = enriched.withColumn('_apc_run', F.sum('_apc_break').over(order))
+    run = Window.partitionBy('vehicle_id', '_apc_run').orderBy('ts_gps').rowsBetween(
+        Window.unboundedPreceding, Window.currentRow)
+    close_stop = F.when(F.col('nearest_stop_dist_m') <= 50, F.col('nearest_stop_id'))
+    enriched = enriched.withColumn('apc_flat_minutes',
+        (F.col('ts_gps').cast('long') - F.min('ts_gps').over(run).cast('long')) / 60)
+    enriched = enriched.withColumn('apc_stuck', F.udf(apc_stuck, 'boolean')(
+        F.col('apc_flat_minutes') * 60,
+        F.max('lat').over(run) - F.min('lat').over(run),
+        F.max('lon').over(run) - F.min('lon').over(run),
+        F.min(close_stop).over(run), F.max(close_stop).over(run)))
+    return (enriched.withColumn('apc_over_capacity', F.col('onboard') > F.col('capacity'))
+            .withColumn('apc_stuck_minutes', F.when(F.col('apc_stuck'),
+                F.least(F.col('_apc_gap'), F.lit(APC_MAX_GAP_SECONDS)) / 60).otherwise(0.))
+            .drop('_apc_gap', '_apc_break', '_apc_run'))
+
+
+@dp.materialized_view(name=name('silver', 'apc_quality'))
+def apc_quality():
+    # Includes quarantined over-capacity values (>1.5x) in the over-capacity count.
+    counts = (read('silver', 'vehicle_pings_candidates')
+              .where('vehicle_id IS NOT NULL AND ts_gps IS NOT NULL')
+              .dropDuplicates(['vehicle_id', 'ts_gps'])
+              .withColumn('service_date', F.to_date(F.from_utc_timestamp('ts_gps', 'America/Chicago')))
+              .groupBy('vehicle_id', 'service_date').agg(
+                  F.count('*').alias('pings'),
+                  F.sum(F.when(F.col('onboard') > F.col('capacity'), 1).otherwise(0))
+                  .alias('over_capacity_pings')))
+    stuck = (read('silver', 'vehicle_pings')
+             .withColumn('service_date', F.to_date(F.from_utc_timestamp('ts_gps', 'America/Chicago')))
+             .groupBy('vehicle_id', 'service_date')
+             .agg(F.sum('apc_stuck_minutes').alias('stuck_minutes')))
+    return counts.join(stuck, ['vehicle_id', 'service_date'], 'left').fillna(0, ['stuck_minutes'])
 
 
 @dp.materialized_view(name=name('silver', 'vehicle_latest'))
