@@ -161,30 +161,34 @@ export default function LiveMap() {
     m.on('zoom', applyOffsets);
     return () => { m.off('zoom', applyOffsets); };
   }, [ready, selected, visibleVehicles, routes, mode, replayTime]);
-  return <main className="live" aria-labelledby="page-title"><aside>
-    <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
-    <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
-    <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay past bus trips</option></select></label>
-    {mode === 'replay' && <section className="replay-controls" aria-label="Replay controls">
-      <Badge kind="MEASURED"/><p>Watch recorded bus positions. The map shows what was reported at the selected time.</p>
-      <label className="field">How far back?<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours</option>)}</select></label>
-      <Status loading={replay.loading} error={replay.error} empty={!replay.loading && !replay.error && !replay.data?.data.length} emptyText="No observed positions available in this archive."/>
-      {start > 0 && <><label className="field">Replay time (Central)<input aria-label="Replay time" type="range" min={start} max={end} step={1000} value={replayTime} onChange={e => {setCursor(Number(e.target.value)); setPlaying(false);}}/></label>
-        <output>{formatDateTime(new Date(replayTime))} CT</output>
-        <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT{replay.data?.capped ? ' · Showing the most recent available positions' : ''}</p>
-        <button className="btn" aria-pressed={playing} disabled={start === end} onClick={() => {if (replayTime >= end) setCursor(start); setPlaying(p => !p);}}>{playing ? 'Pause' : 'Play'}</button>
-        <label className="field">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}× · {s === 1 ? 'Real time' : `${s} seconds per second`}</option>)}</select></label>
-        <p>Buses disappear if no position was recorded for 2 min. Try moving the time slider if the map is empty.</p></>}
-    </section>}
-    {mode === 'live' && <Status error={error || forecastError}/>}
-    {routeDetail && mode === 'live' && meta.data?.freshness.data_expected !== false && <><button className="btn btn--ghost route-close" onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} routes={routes} predictions={currentPredictions}/></>}
-    <details className="route-browser" open={routeBrowserOpen} onToggle={e => setRouteBrowserOpen(e.currentTarget.open)}><summary>Choose routes · {routes.length} routes</summary><h2>Find a route</h2><label className="field">Search routes<input type="search" placeholder="Route number or name" value={search} onChange={e => setSearch(e.target.value)}/></label><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
-    <div className="route-list">{routes.filter(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())).map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><RouteChip route={r}/></label>{mode === 'live' && meta.data?.freshness.data_expected !== false && <button aria-label={`Forecast for route ${r.route_short_name} ${r.route_long_name}`} onClick={() => setRouteDetail(r.route_short_name)}>See forecast</button>}</div>)}</div>
-    {search && !routes.some(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())) && <p>No routes match. Try a name such as Bonfire.</p>}
-    </details>
-    <AboutThisData sources={{'Bus source': vehicles[0]?.source, 'Replay source': replay.data?.source, 'Replay positions': replay.data?.data.length, 'Model versions': [...new Set(predictions.map(p => (p as Prediction & {model_version?: string}).model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(predictions.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable'}}><p>Measured fullness comes from bus passenger counters. Capacity includes all available passenger places, which can include standing room. Route lines show the busiest direction’s forecast for 30 min ahead; grey means no current forecast. Forecast training may include simulated history. Replay uses recorded GPS positions, up to 10,000 positions, and hides current forecasts. Event markers indicate assumed extra demand. Dashed amber route highlights indicate an alert, not the detour path.</p></AboutThisData>
-    <footer>Schedule © TAMU Transportation Services. APC readings reported by TripSpark.</footer>
-  </aside><section className="map-wrap" aria-label={mode === 'replay' ? 'Replay campus bus map' : 'Live campus bus map'}><div ref={container} className="map"/>
+  return <main className="live" aria-labelledby="page-title"><div className="live-panel">
+    <div className="live-head">
+      <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
+      <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
+      <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay past bus trips</option></select></label>
+      {mode === 'replay' && <section className="replay-controls" aria-label="Replay controls">
+        <Badge kind="MEASURED"/><p>Watch recorded bus positions. The map shows what was reported at the selected time.</p>
+        <label className="field">How far back?<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours</option>)}</select></label>
+        <Status loading={replay.loading} error={replay.error} empty={!replay.loading && !replay.error && !replay.data?.data.length} emptyText="No observed positions available in this archive."/>
+        {start > 0 && <><label className="field">Replay time (Central)<input aria-label="Replay time" type="range" min={start} max={end} step={1000} value={replayTime} onChange={e => {setCursor(Number(e.target.value)); setPlaying(false);}}/></label>
+          <output>{formatDateTime(new Date(replayTime))} CT</output>
+          <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT{replay.data?.capped ? ' · Showing the most recent available positions' : ''}</p>
+          <button className="btn" aria-pressed={playing} disabled={start === end} onClick={() => {if (replayTime >= end) setCursor(start); setPlaying(p => !p);}}>{playing ? 'Pause' : 'Play'}</button>
+          <label className="field">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}× · {s === 1 ? 'Real time' : `${s} seconds per second`}</option>)}</select></label>
+          <p>Buses disappear if no position was recorded for 2 min. Try moving the time slider if the map is empty.</p></>}
+      </section>}
+      {mode === 'live' && <Status error={error || forecastError}/>}
+      {routeDetail && mode === 'live' && meta.data?.freshness.data_expected !== false && <><button className="btn btn--ghost route-close" onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} routes={routes} predictions={currentPredictions}/></>}
+    </div>
+    <div className="live-side">
+      <details className="route-browser" open={routeBrowserOpen} onToggle={e => setRouteBrowserOpen(e.currentTarget.open)}><summary>Choose routes · {routes.length} routes</summary><h2>Find a route</h2><label className="field">Search routes<input type="search" placeholder="Route number or name" value={search} onChange={e => setSearch(e.target.value)}/></label><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
+      <div className="route-list">{routes.filter(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())).map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><RouteChip route={r}/></label>{mode === 'live' && meta.data?.freshness.data_expected !== false && <button aria-label={`Forecast for route ${r.route_short_name} ${r.route_long_name}`} onClick={() => setRouteDetail(r.route_short_name)}>See forecast</button>}</div>)}</div>
+      {search && !routes.some(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())) && <p>No routes match. Try a name such as Bonfire.</p>}
+      </details>
+      <AboutThisData sources={{'Bus source': vehicles[0]?.source, 'Replay source': replay.data?.source, 'Replay positions': replay.data?.data.length, 'Model versions': [...new Set(predictions.map(p => (p as Prediction & {model_version?: string}).model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(predictions.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable'}}><p>Measured fullness comes from bus passenger counters. Capacity includes all available passenger places, which can include standing room. Route lines show the busiest direction’s forecast for 30 min ahead; grey means no current forecast. Forecast training may include simulated history. Replay uses recorded GPS positions, up to 10,000 positions, and hides current forecasts. Event markers indicate assumed extra demand. Dashed amber route highlights indicate an alert, not the detour path.</p></AboutThisData>
+      <footer>Schedule © TAMU Transportation Services. APC readings reported by TripSpark.</footer>
+    </div>
+  </div><section className="map-wrap" aria-label={mode === 'replay' ? 'Replay campus bus map' : 'Live campus bus map'}><div ref={container} className="map"/>
 
     <div className="map-info">
       {mapError && <p role="status">{mapError}</p>}
