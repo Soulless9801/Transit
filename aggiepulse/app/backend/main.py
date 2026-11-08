@@ -2,7 +2,7 @@ import json
 import mimetypes
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
 from .data import VehicleCache
@@ -67,12 +67,24 @@ def history():
     return datasets.get("history")
 
 
+@app.get("/api/replay")
+def replay(hours: int = Query(default=24, ge=1, le=168)):
+    return datasets.get("replay", hours=hours)
+
+
+@app.get("/api/history/comparison")
+def comparison():
+    return datasets.get("comparison")
+
+
+@app.get("/api/events/impacts")
+def event_impacts():
+    return datasets.event_impacts()
+
+
 @app.get("/api/meta")
 def meta():
-    return {
-        name: {k: v for k, v in datasets.get(name).items() if k != "data"}
-        for name in ("vehicles", "predictions", "events", "alerts", "history")
-    }
+    return datasets.meta()
 
 
 @app.get("/api/plan")

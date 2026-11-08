@@ -254,9 +254,78 @@ def local_history():
     ]
 
 
+def local_replay():
+    """Observed landing pings; no network or TripSpark dependency."""
+    from .data import flatten_vehicles
+
+    rows = []
+    base = latest_base()
+    for path in sorted((ROOT / "data/landing/tripspark_vehicles").rglob("*.gz"))[-168:]:
+        try:
+            with gzip.open(path, "rt") as stream:
+                for line in stream:
+                    record = json.loads(line)
+                    if record.get("http_status") == 200 and record.get("payload"):
+                        rows.extend(
+                            flatten_vehicles(
+                                record["payload"], record.get("ingest_ts"), base
+                            )
+                        )
+        except (OSError, EOFError, ValueError):
+            continue
+    return rows
+
+
+def replay_window(rows, hours):
+    """Match SQL's latest GPS per vehicle/minute and bounded, latest window."""
+    valid = []
+    for row in rows:
+        try:
+            if row.get("lat") is not None and row.get("lon") is not None:
+                valid.append((timestamp(row["ts_gps"]), row))
+        except (KeyError, ValueError, TypeError):
+            continue
+    if not valid:
+        return []
+    cutoff = max(t for t, _ in valid) - timedelta(hours=hours)
+    buckets = {}
+    for stamp, row in sorted(valid, key=lambda item: item[0]):
+        if stamp >= cutoff:
+            buckets[(row["vehicle_id"], stamp.replace(second=0, microsecond=0))] = {
+                **row,
+                "ts_gps": stamp.isoformat(),
+                "route": row.get("route_short_name", row.get("route")),
+                "provenance": "MEASURED · APC",
+                "data_origin": "observed",
+            }
+    return sorted(buckets.values(), key=lambda row: (row["ts_gps"], row["vehicle_id"]))[
+        -10000:
+    ]
+
+
+def local_route_directions():
+    return [
+        {
+            "route_short_name": p["route"],
+            "direction_id": p["direction"],
+            "route_id": next(
+                (
+                    r["route_id"]
+                    for r in static("routes.json")
+                    if r["route_short_name"] == p["route"]
+                ),
+                None,
+            ),
+        }
+        for p in static("planner.json")
+    ]
+
+
 def timestamp(value):
     parsed = datetime.fromisoformat(str(value))
-    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+    return (
+        parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+    )
 
 
 def select_vehicles(backend, now=None):
@@ -266,35 +335,55 @@ def select_vehicles(backend, now=None):
     try:
         hot = backend.hot_snapshot()
         # Republishing an old poll must never make it appear live.
-        ages = [(now - timestamp(hot[k])).total_seconds() for k in ('snapshot_ts', 'poll_ingest_ts')]
-        if all(-60 <= age <= 180 for age in ages) and isinstance(hot['vehicles'], list):
-            return hot['vehicles'], 'hot-path', None, {k: hot[k] for k in ('snapshot_ts', 'poll_ingest_ts')}
-        errors.append('Hot path stale')
+        ages = [
+            (now - timestamp(hot[k])).total_seconds()
+            for k in ("snapshot_ts", "poll_ingest_ts")
+        ]
+        if all(-60 <= age <= 180 for age in ages) and isinstance(hot["vehicles"], list):
+            return (
+                hot["vehicles"],
+                "hot-path",
+                None,
+                {k: hot[k] for k in ("snapshot_ts", "poll_ingest_ts")},
+            )
+        errors.append("Hot path stale")
     except Exception as exc:  # noqa: BLE001 - keep fallback available on SDK failures
-        errors.append('Hot path: ' + str(exc)[:150])
+        errors.append("Hot path: " + str(exc)[:150])
     try:
-        rows = backend.query('vehicles')
-        fresh = [r for r in rows if r.get('ts_gps') and -60 <= (now - timestamp(r['ts_gps'])).total_seconds() <= 600]
+        rows = backend.query("vehicles")
+        fresh = [
+            r
+            for r in rows
+            if r.get("ts_gps")
+            and -60 <= (now - timestamp(r["ts_gps"])).total_seconds() <= 600
+        ]
         if fresh:
-            return fresh, 'databricks', '; '.join(errors), {}
-        errors.append('Silver vehicle_latest empty or stale')
+            return fresh, "databricks", "; ".join(errors), {}
+        errors.append("Silver vehicle_latest empty or stale")
     except Exception as exc:  # noqa: BLE001 - keep fallback available on SDK failures
-        errors.append('Silver: ' + str(exc)[:150])
-    frozen = Path(__file__).resolve().parents[1] / 'fallback/vehicles.json'
-    return json.loads(frozen.read_text()) if frozen.exists() else [], 'local-snapshot', '; '.join(errors), {}
+        errors.append("Silver: " + str(exc)[:150])
+    frozen = Path(__file__).resolve().parents[1] / "fallback/vehicles.json"
+    return (
+        json.loads(frozen.read_text()) if frozen.exists() else [],
+        "local-snapshot",
+        "; ".join(errors),
+        {},
+    )
 
 
 def refresh_vehicle_ages(result, now=None):
     now = now or datetime.now(UTC)
     gps = []
-    for row in result['data']:
-        if row.get('ts_gps'):
-            stamp = timestamp(row['ts_gps'])
+    for row in result["data"]:
+        if row.get("ts_gps"):
+            stamp = timestamp(row["ts_gps"])
             gps.append(stamp)
-            row['gps_age_s'] = max(0, (now - stamp).total_seconds())
-    result['latest_gps_ts'] = max(gps).isoformat() if gps else None
-    reference = result.get('poll_ingest_ts') or result['latest_gps_ts']
-    result['age_s'] = max(0, (now - timestamp(reference)).total_seconds()) if reference else None
+            row["gps_age_s"] = max(0, (now - stamp).total_seconds())
+    result["latest_gps_ts"] = max(gps).isoformat() if gps else None
+    reference = result.get("poll_ingest_ts") or result["latest_gps_ts"]
+    result["age_s"] = (
+        max(0, (now - timestamp(reference)).total_seconds()) if reference else None
+    )
     return result
 
 
@@ -302,12 +391,12 @@ class Datasets:
     def __init__(self):
         self.cache = {}
 
-    def get(self, name):
+    def get(self, name, hours=24):
         mode = os.getenv("AGGIEPULSE_BACKEND", "local")
-        key = (mode, name)
+        key = (mode, name, hours if name == "replay" else None)
         if key in self.cache and time.monotonic() < self.cache[key][0]:
             cached = self.cache[key][1]
-            return refresh_vehicle_ages(cached) if name == 'vehicles' else cached
+            return refresh_vehicle_ages(cached) if name == "vehicles" else cached
         error = None
         rows = None
         metadata = {}
@@ -316,7 +405,19 @@ class Datasets:
             rows, vehicle_source, error, metadata = select_vehicles(DatabricksBackend())
         elif mode == "databricks":
             try:
-                rows = DatabricksBackend().query(name)
+                if name == "replay":
+                    from databricks.sdk.service.sql import StatementParameterListItem
+
+                    rows = DatabricksBackend().query(
+                        name,
+                        parameters=[
+                            StatementParameterListItem(
+                                name="hours", type="INT", value=str(hours)
+                            )
+                        ],
+                    )
+                else:
+                    rows = DatabricksBackend().query(name)
             except Exception as exc:  # noqa: BLE001
                 error = str(exc)[:300]
         source = (
@@ -332,6 +433,10 @@ class Datasets:
                 "alerts": local_alerts,
                 "predictions": mock_predictions,
                 "history": local_history,
+                "replay": local_replay,
+                "comparison": list,
+                "route_directions": local_route_directions,
+                "pipeline": list,
             }[name]()
             if not rows and name != "predictions":
                 frozen = (
@@ -340,7 +445,20 @@ class Datasets:
                 if frozen.exists():
                     rows = json.loads(frozen.read_text())
                     source = "local-snapshot"
+        if name == "replay":
+            rows = replay_window(rows, hours)
+            metadata.update(
+                hours=hours,
+                row_cap=10000,
+                capped=len(rows) >= 10000,
+                start_ts=rows[0]["ts_gps"] if rows else None,
+                end_ts=rows[-1]["ts_gps"] if rows else None,
+                provenance="MEASURED · APC",
+                mode="REPLAY",
+            )
         for row in rows:
+            if row.get("direction_id") is not None:
+                row["direction_id"] = str(row["direction_id"])
             row["source"] = source
             if name == "predictions":
                 if "mock" in str(row.get("model_version", "")).lower():
@@ -350,15 +468,14 @@ class Datasets:
                     row["provenance"] = "PREDICTED"
             if name in ("vehicles", "predictions"):
                 row["route"] = row.get("route_short_name", row.get("route"))
-                row["direction"] = row.get("direction_id", row.get("direction"))
+                row["direction"] = str(
+                    row.get("direction_id", row.get("direction", ""))
+                )
             if name == "vehicles":
                 if row.get("ts_gps"):
                     row["gps_age_s"] = max(
                         0,
-                        (
-                            datetime.now(UTC)
-                            - timestamp(row["ts_gps"])
-                        ).total_seconds(),
+                        (datetime.now(UTC) - timestamp(row["ts_gps"])).total_seconds(),
                     )
                 route = next(
                     (
@@ -382,9 +499,113 @@ class Datasets:
             "fallback_reason": error,
             **metadata,
         }
-        if name == 'vehicles':
+        if name == "vehicles":
             refresh_vehicle_ages(result)
         self.cache[key] = (time.monotonic() + 15, result)
+        return result
+
+    def event_impacts(self):
+        events = self.get("events")
+        mappings = self.get("route_directions")
+        predictions = self.get("predictions")
+        game = {
+            "event_id": "tennessee-2026-11-14",
+            "title": "Football vs Tennessee",
+            "start_ts": "2026-11-14T06:00:00Z",
+            "end_ts": "2026-11-15T06:00:00Z",
+            "time_tba": True,
+            "venue_key": "Kyle Field",
+            "lat": 30.61025,
+            "lon": -96.34072,
+            "significance": 20,
+        }
+        rows = []
+        for event in [game, *events["data"]]:
+            nearby = affected(event)
+            directions = [
+                m for m in mappings["data"] if m["route_short_name"] in nearby
+            ]
+            start = timestamp(event["start_ts"])
+            end = timestamp(event.get("end_ts") or event["start_ts"])
+            impacts = []
+            for pred in predictions["data"]:
+                if (
+                    pred.get("route") not in nearby
+                    or pred.get("event_uplift") is None
+                    or not pred.get("t0")
+                ):
+                    continue
+                target = timestamp(pred["t0"]) + timedelta(minutes=pred["horizon_min"])
+                if start - timedelta(hours=2) <= target <= end + timedelta(hours=2):
+                    impacts.append(
+                        {
+                            "route": pred["route"],
+                            "direction": pred.get("direction"),
+                            "horizon_min": pred["horizon_min"],
+                            "event_uplift": pred["event_uplift"],
+                            "target_ts": target.isoformat(),
+                            "scoring_ts": pred.get("scoring_ts"),
+                        }
+                    )
+            rows.append(
+                {
+                    **event,
+                    "affected_routes": nearby,
+                    "route_directions": directions,
+                    "impacts": impacts,
+                    "impact_provenance": "SIMULATED PRIOR",
+                }
+            )
+        return {
+            **events,
+            "data": rows,
+            "prediction_source": predictions["source"],
+            "route_mapping_source": mappings["source"],
+            "impact_note": "Event uplift is a model prior across overlapping forecasts; it is not a measured or isolated causal effect.",
+        }
+
+    def meta(self):
+        result = {
+            name: {k: v for k, v in self.get(name).items() if k != "data"}
+            for name in (
+                "vehicles",
+                "predictions",
+                "events",
+                "alerts",
+                "history",
+                "pipeline",
+            )
+        }
+        preds = self.get("predictions")
+        scoring = [
+            timestamp(r["scoring_ts"])
+            for r in preds["data"]
+            if r.get("scoring_ts") and r.get("source") != "mock"
+        ]
+        pipeline = self.get("pipeline")
+        gps = [
+            timestamp(r["latest_pipeline_gps_ts"])
+            for r in pipeline["data"]
+            if r.get("latest_pipeline_gps_ts")
+        ]
+        ingest = [
+            timestamp(r["latest_pipeline_ingest_ts"])
+            for r in pipeline["data"]
+            if r.get("latest_pipeline_ingest_ts")
+        ]
+        now = datetime.now(UTC)
+        result["freshness"] = {
+            "bus_snapshot_age_s": result["vehicles"].get("age_s"),
+            "bus_source": result["vehicles"]["source"],
+            "last_scoring_ts": max(scoring).isoformat() if scoring else None,
+            "scoring_age_s": max(0, (now - max(scoring)).total_seconds())
+            if scoring
+            else None,
+            "latest_pipeline_gps_ts": max(gps).isoformat() if gps else None,
+            "latest_pipeline_ingest_ts": max(ingest).isoformat() if ingest else None,
+            "pipeline_lag_s": max(0, (now - max(gps)).total_seconds()) if gps else None,
+            "pipeline_source": pipeline["source"],
+        }
         return result
 
 
@@ -406,7 +627,9 @@ def plan(origin, destination, predictions, hour=12):
                 if j <= i or a not in origins or b not in destinations:
                     continue
                 for shift in (-10, 0, 10, 20):
-                    horizon = min((15, 30, 60), key=lambda h: abs(h - max(15, 15 + shift)))
+                    horizon = min(
+                        (15, 30, 60), key=lambda h: abs(h - max(15, 15 + shift))
+                    )
                     pred = next(
                         (
                             p
