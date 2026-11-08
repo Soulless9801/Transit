@@ -40,6 +40,10 @@ databricks apps update-permissions aggiepulse -p transit \
 
 Viewers don't need table permissions, because the app reads data as its own service principal. To remove access, delete the user, or rerun step 2 with the permission removed using `set-permissions`.
 
+## Public mirror (no login)
+
+`render.yaml` deploys the same app to Render as a public, read-only copy. It signs in to Databricks as the service principal `aggiepulse-public`, which can only `SELECT` the tables the app shows and read `transit.raw.live`, and caches each dataset for 30 s. To recreate it: create a service principal with the `databricks-sql-access` entitlement, apply those grants plus `CAN_USE` on the warehouse, create an OAuth secret, then in Render choose New → Blueprint, pick this repo, and paste the client ID and secret when asked. The laptop collector must be running for live buses.
+
 ## Caveats
 
 - Collection started 2026-11-07, so real data is still thin. The models are trained mostly on simulated history calibrated to TAMU's NTD ridership. Treat forecasts as indicative until weekday data accumulates.

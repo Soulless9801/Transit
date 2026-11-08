@@ -10,7 +10,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from .data import ROOT, DatabricksBackend, LocalBackend, latest_base
+from .data import CACHE_SECONDS, ROOT, DatabricksBackend, LocalBackend, latest_base
 
 STATIC = Path(__file__).resolve().parents[1] / "frontend/public/static"
 
@@ -512,7 +512,7 @@ class Datasets:
         }
         if name == "vehicles":
             refresh_vehicle_ages(result)
-        self.cache[key] = (time.monotonic() + 15, result)
+        self.cache[key] = (time.monotonic() + CACHE_SECONDS, result)
         return result
 
     def event_impacts(self):

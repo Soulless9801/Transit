@@ -11,6 +11,8 @@ from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[2]
+# Seconds each dataset is cached; the public mirror raises this to cut warehouse load.
+CACHE_SECONDS = float(os.getenv("AGGIEPULSE_CACHE_SECONDS", "15"))
 
 
 def flatten_vehicles(payload, ingest_ts=None, base_data=None):
@@ -307,5 +309,5 @@ class VehicleCache:
             self.value = (
                 DatabricksBackend() if mode == "databricks" else LocalBackend()
             ).latest()
-            self.expires, self.mode = time.monotonic() + 15, mode
+            self.expires, self.mode = time.monotonic() + CACHE_SECONDS, mode
         return self.value

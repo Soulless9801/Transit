@@ -1,0 +1,24 @@
+# Render Blueprint: public, read-only mirror of the AggiePulse app.
+# Secrets use sync:false, so Render asks for them when the Blueprint is created.
+services:
+  - type: web
+    name: aggiepulse
+    runtime: docker
+    plan: free
+    region: ohio
+    rootDir: aggiepulse/app
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABRICKS_HOST
+        value: https://dbc-595c228e-76f6.cloud.databricks.com
+      - key: DATABRICKS_WAREHOUSE_ID
+        value: 3c5b1dbf21774cde
+      - key: AGGIEPULSE_CACHE_SECONDS
+        value: "30"
+      - key: DATABRICKS_CLIENT_ID
+        sync: false
+      - key: DATABRICKS_CLIENT_SECRET
+        sync: false

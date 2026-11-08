@@ -1,0 +1,5 @@
+frontend/node_modules
+frontend/dist
+.cache
+**/__pycache__
+verification.json
