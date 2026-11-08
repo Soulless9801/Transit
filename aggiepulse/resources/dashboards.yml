@@ -1,0 +1,7 @@
+resources:
+  dashboards:
+    aggiepulse_ops_dashboard:
+      display_name: AggiePulse Operations
+      file_path: ../dashboards/aggiepulse_ops.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: true

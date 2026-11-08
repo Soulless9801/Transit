@@ -1,0 +1,17 @@
+{
+  "resolved_utc": "2026-11-08T00:21:05.513199+00:00",
+  "models": [
+    {
+      "model_name": "transit.ml.crowding_h15",
+      "champion_version": "1"
+    },
+    {
+      "model_name": "transit.ml.crowding_h30",
+      "champion_version": "1"
+    },
+    {
+      "model_name": "transit.ml.crowding_h60",
+      "champion_version": "1"
+    }
+  ]
+}
