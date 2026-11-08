@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {spreadOffsets, LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes, PAGES, pageFromHash, hashForPage} from './format.ts';
+import {spreadOffsets, LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes, PAGES, pageFromHash, hashForPage, groupShowings} from './format.ts';
 
 test('load scale and contrast', () => {
   for (const step of LOAD_SCALE) assert.ok(contrastRatio(step.bg, step.fg) >= 4.5);
@@ -177,3 +177,38 @@ test('nearby buses spread deterministically while distant buses stay put', () =>
   // a and b form a ring whose lower slot lands on c (50 px away); the groups merge instead of overlapping.
   check([{id: 'a', x: 0, y: 0}, {id: 'b', x: 10, y: 0}, {id: 'c', x: 0, y: 50}]);
 });
+
+test('groupShowings merges repeat showings preserving order and first item', () => {
+  // same title and venue with two dates -> one entry with 2 showings in order
+  const e1 = {title: 'OPAS presents A Beautiful Noise', venue_key: 'rudder', start_ts: '2026-11-10T19:30:00Z'};
+  const e2 = {title: 'OPAS presents A Beautiful Noise', venue_key: 'rudder', start_ts: '2026-11-11T19:30:00Z'};
+  const r1 = groupShowings([e1, e2]);
+  assert.equal(r1.length, 1);
+  assert.deepEqual(r1[0].showings, ['2026-11-10T19:30:00Z', '2026-11-11T19:30:00Z']);
+
+  // same title at different venues -> two entries
+  const e3 = {title: 'OPAS presents A Beautiful Noise', venue_key: 'kyle', start_ts: '2026-11-12T19:30:00Z'};
+  const r2 = groupShowings([e1, e3]);
+  assert.equal(r2.length, 2);
+  assert.deepEqual(r2[0].showings, ['2026-11-10T19:30:00Z']);
+  assert.deepEqual(r2[1].showings, ['2026-11-12T19:30:00Z']);
+
+  // title differing only in case or whitespace -> merged
+  const e4 = {title: '  opas   presents a beautiful noise  ', venue_key: 'rudder', start_ts: '2026-11-10T19:30:00Z'};
+  const e5 = {title: 'OPAS PRESENTS A BEAUTIFUL NOISE', venue_key: 'RUDDER', start_ts: '2026-11-11T19:30:00Z'};
+  const r3 = groupShowings([e4, e5]);
+  assert.equal(r3.length, 1);
+  assert.deepEqual(r3[0].showings, ['2026-11-10T19:30:00Z', '2026-11-11T19:30:00Z']);
+
+  // group order follows first appearance
+  const a1 = {title: 'Alpha', venue_key: 'v1', start_ts: 't1'};
+  const b1 = {title: 'Beta', venue_key: 'v2', start_ts: 't2'};
+  const a2 = {title: 'Alpha', venue_key: 'v1', start_ts: 't3'};
+  const r4 = groupShowings([a1, b1, a2]);
+  assert.equal(r4.length, 2);
+  assert.equal(r4[0].title, 'Alpha');
+  assert.deepEqual(r4[0].showings, ['t1', 't3']);
+  assert.equal(r4[1].title, 'Beta');
+  assert.deepEqual(r4[1].showings, ['t2']);
+});
+
