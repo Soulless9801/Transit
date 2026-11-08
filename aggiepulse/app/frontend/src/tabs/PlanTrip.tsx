@@ -1,5 +1,5 @@
-import {useMemo, useState} from 'react';
-import {campusHour, pct, resolveStop, shiftLabel, stopOptions} from '../format';
+import {useEffect, useMemo, useState} from 'react';
+import {campusHour, parseUtc, pct, resolveStop, shiftLabel, stopOptions} from '../format';
 import type {Freshness, Route} from '../format';
 import {AboutThisData, Badge, EmptyState, PageHeader, RouteChip, ServiceNotice, Status, StopName, StopPicker, TimeLabel, useApi} from '../ui';
 type Stops = {features: {geometry?: {coordinates: number[]}; properties: {stop_id: string; stop_name: string; routes?: string[]}}[]};
@@ -7,12 +7,24 @@ type Option = {route: string; direction: string; shift: number; wait_min: number
 export default function PlanTrip() {
   const stops = useApi<Stops>('/api/stops');
   const routes = useApi<Route[]>('/api/routes');
-  const meta = useApi<{freshness: Freshness}>('/api/meta');
+  const meta = useApi<{freshness: Freshness}>('/api/meta', 15000);
   const options = useMemo(() => stopOptions(stops.data?.features ?? []),[stops.data]);
   const [from,setFrom] = useState(''), [to,setTo] = useState(''), [hour,setHour] = useState(campusHour);
+  const [hourTouched, setHourTouched] = useState(false);
+  const [nextServiceDefault, setNextServiceDefault] = useState(false);
   const [fromError,setFromError] = useState(''), [toError,setToError] = useState('');
   const [loading,setLoading] = useState(false), [error,setError] = useState(''), [searched,setSearched] = useState(false);
   const [results,setResults] = useState<Option[]>([]);
+  useEffect(() => {
+    if (hourTouched) return;
+    if (meta.data?.freshness.in_service === false) {
+      const nextDate = parseUtc(meta.data.freshness.next_scheduled_ts);
+      if (nextDate) {
+        setHour(campusHour(nextDate));
+        setNextServiceDefault(true);
+      }
+    }
+  }, [meta.data, hourTouched]);
   async function submit(e: React.FormEvent) {
     e.preventDefault(); const origin=resolveStop(options,from), destination=resolveStop(options,to);
     setFromError(origin ? '' : 'Choose a stop name from the suggestions.');
@@ -30,9 +42,10 @@ export default function PlanTrip() {
     <Status loading={stops.loading} error={stops.error || routes.error}/>
     <form onSubmit={submit} noValidate className="trip-form">
       <StopPicker label="From" value={from} onChange={v => {setFrom(v);setFromError('');setSearched(false);}} options={options} error={fromError}/>
-      <button type="button" className="btn btn--ghost" onClick={() => {setFrom(to);setTo(from);setFromError('');setToError('');setSearched(false);}} aria-label="Swap origin and destination">Swap stops</button>
+      <button type="button" className="btn btn--ghost swap-btn" onClick={() => {setFrom(to);setTo(from);setFromError('');setToError('');setSearched(false);}} aria-label="Swap origin and destination">⇅ Swap stops</button>
       <StopPicker label="To" value={to} onChange={v => {setTo(v);setToError('');setSearched(false);}} options={options} error={toError}/>
-      <label className="field">Typical departure hour (Central)<select value={hour} onChange={e => {setHour(Number(e.target.value));setSearched(false);}}>{Array.from({length:24},(_,h) => <option key={h} value={h}>{h%12 || 12}:00 {h<12 ? 'AM' : 'PM'}</option>)}</select></label>
+      <label className="field">Typical departure hour (Central)<select value={hour} onChange={e => {setHour(Number(e.target.value));setHourTouched(true);setSearched(false);}}>{Array.from({length:24},(_,h) => <option key={h} value={h}>{h%12 || 12}:00 {h<12 ? 'AM' : 'PM'}</option>)}</select></label>
+      {nextServiceDefault && !hourTouched && <p className="meta">Buses are off right now, so this starts at the next service hour.</p>}
       <button className="btn" disabled={loading || stops.loading || !options.length}>{loading ? 'Finding routes…' : 'Find trip options'}</button>
     </form>
     <Status loading={loading} error={error}/>
