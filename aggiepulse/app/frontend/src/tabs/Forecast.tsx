@@ -1,157 +1,40 @@
-import {compareRoutes, directionLabels, pct, points} from '../format';
-import {Badge, IntervalBar, LoadCell, LoadLegend, PageHeader, SourceLine, Status, useApi} from '../ui';
-
-type Prediction = {
-  route: string;
-  direction: string;
-  horizon_min: 15 | 30 | 60;
-  pred_p10: number;
-  pred_p50: number;
-  pred_p90: number;
-  p_crowd: number;
-  top_factors?: {family: string; feature: string; value: number; contribution: number}[];
-  source: 'databricks' | 'mock' | string;
-  provenance?: string;
-  training_data_origin?: string;
-  model_version?: string;
-};
-
-type Route = {
-  route_id?: string;
-  route_short_name: string;
-  route_long_name: string;
-  route_color?: string;
-};
-
+import {compareRoutes, directionName, factorPhrase, parseUtc, pct} from '../format';
+import type {Freshness, Prediction, Route} from '../format';
+import {AboutThisData, Badge, EmptyState, IntervalBar, LoadCell, LoadLegend, PageHeader, RouteChip, ServiceNotice, Status, useApi} from '../ui';
+type ForecastRow = Prediction & {p_crowd: number; source?: string; model_version?: string; t0?: string};
 export default function Forecast() {
-  const predsApi = useApi<Prediction[]>('/api/predictions');
-  const routesApi = useApi<Route[]>('/api/routes');
-
-  const preds = predsApi.data ?? [];
-  const routesData = routesApi.data ?? [];
-
-  const routeMap = new Map<string, string>();
-  for (const r of routesData) {
-    routeMap.set(r.route_short_name, r.route_long_name);
-  }
-
-  const distinctRoutes = [...new Set(preds.map(p => p.route))].sort(compareRoutes);
-
-  const directionMapByRoute = new Map<string, Map<string, string>>();
-  for (const r of distinctRoutes) {
-    const dirs = preds.filter(p => p.route === r).map(p => p.direction);
-    directionMapByRoute.set(r, directionLabels(dirs));
-  }
-
-  const top30 = preds
-    .filter(p => p.horizon_min === 30)
-    .sort((a, b) => b.p_crowd - a.p_crowd || compareRoutes(a.route, b.route) || a.direction.localeCompare(b.direction))
-    .slice(0, 5);
-
-  const loading = predsApi.loading || routesApi.loading;
-  const error = predsApi.error || routesApi.error;
-  const empty = !loading && !error && preds.length === 0;
-
-  return (
-    <main className="dashboard" aria-labelledby="page-title">
-      <PageHeader
-        title="Forecast"
-        lede="Predicted onboard load for every route over the next hour. A bus counts as crowded at 75% of capacity or more."
-      />
-      <SourceLine kinds={['PREDICTED']} source={preds[0]?.source} />
-      <Status
-        loading={loading}
-        error={error}
-        empty={empty}
-        emptyText="No predictions available yet."
-      />
-
-      {preds.length > 0 && (
-        <>
-          <section className="section" aria-labelledby="next-hour-heading">
-            <h2 id="next-hour-heading">Next hour by route</h2>
-            <LoadLegend title="Median predicted load" />
-            <div className="table-scroll">
-              <table className="data-table">
-                <caption className="visually-hidden">Next hour by route</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Route</th>
-                    <th scope="col">In 15 min</th>
-                    <th scope="col">In 30 min</th>
-                    <th scope="col">In 60 min</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {distinctRoutes.map(r => {
-                    const longName = routeMap.get(r) || '';
-                    return (
-                      <tr key={r}>
-                        <th scope="row">
-                          {r}
-                          <br />
-                          <small style={{fontSize: '14px', fontWeight: 'normal'}}>{longName}</small>
-                        </th>
-                        {([15, 30, 60] as const).map(h => {
-                          const matching = preds.filter(p => p.route === r && p.horizon_min === h);
-                          const maxP50 = matching.length > 0 ? Math.max(...matching.map(p => p.pred_p50)) : null;
-                          return <LoadCell key={h} value={maxP50} />;
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="section" aria-labelledby="crowding-risk-heading">
-            <h2 id="crowding-risk-heading">Highest crowding risk in 30 minutes</h2>
-            <div className="cards">
-              {top30.map(p => {
-                const dirLabel = directionMapByRoute.get(p.route)?.get(p.direction) ?? `Direction ${p.direction}`;
-                const longName = routeMap.get(p.route) || '';
-                const isSimulated = p.source === 'mock' || p.provenance === 'SIMULATED';
-                const factors = [...(p.top_factors ?? [])].sort(
-                  (a, b) => Math.abs(b.contribution) - Math.abs(a.contribution)
-                );
-
-                return (
-                  <article key={`${p.route}-${p.direction}`}>
-                    <h3>
-                      Route {p.route} · {dirLabel}
-                    </h3>
-                    <p className="meta">{longName}</p>
-                    <p>
-                      <span className="big-stat">{pct(p.p_crowd)}</span>{' '}
-                      <span className="stat-label">chance of being crowded</span>
-                    </p>
-                    <p>
-                      Expected load {pct(p.pred_p50)}, likely between {pct(p.pred_p10)} and {pct(p.pred_p90)}
-                    </p>
-                    <IntervalBar p10={p.pred_p10} p50={p.pred_p50} p90={p.pred_p90} />
-                    <h4>Why</h4>
-                    <ul className="factor-list">
-                      {factors.map((f, i) => (
-                        <li key={`${f.family}-${f.feature}-${i}`}>
-                          <span aria-hidden="true">{f.contribution >= 0 ? '▲' : '▼'}</span> {f.family} {points(f.contribution)}
-                        </li>
-                      ))}
-                    </ul>
-                    <p style={{display: 'flex', gap: '6px', flexWrap: 'wrap', margin: '12px 0 0'}}>
-                      <Badge kind="PREDICTED" />
-                      {isSimulated && <Badge kind="SIMULATED" />}
-                      {p.training_data_origin && (
-                        <Badge kind={`TRAINED ON ${p.training_data_origin.toUpperCase()}`} />
-                      )}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        </>
-      )}
-    </main>
-  );
+  const predictions = useApi<ForecastRow[]>('/api/predictions',15000);
+  const routes = useApi<Route[]>('/api/routes');
+  const meta = useApi<{freshness: Freshness}>('/api/meta',15000);
+  const rows = predictions.data ?? [];
+  const freshness = meta.data?.freshness;
+  const paused = freshness?.data_expected === false || freshness?.in_service === false;
+  const current = rows.filter(p => !p.t0 || (parseUtc(p.t0)?.getTime() ?? 0) + p.horizon_min*60000 >= Date.now());
+  const codes = [...new Set(current.map(p => p.route))].sort(compareRoutes);
+  const top = current.filter(p => p.horizon_min === 30).sort((a,b) => b.p_crowd-a.p_crowd || compareRoutes(a.route,b.route)).slice(0,5);
+  const chip = (code: string) => <RouteChip code={code} route={routes.data?.find(r => r.route_short_name === code)}/>;
+  const simulated = current.some(p => p.provenance === 'SIMULATED' || p.source === 'mock');
+  const loading = predictions.loading || routes.loading || meta.loading;
+  return <main className="dashboard" aria-labelledby="page-title">
+    <PageHeader title="Forecast" lede="See how full buses may be in 15, 30 and 60 min. Crowded means at least 75% full."/>
+    <Status loading={loading} error={predictions.error || routes.error || meta.error}/>
+    {!loading && !predictions.error && (paused || !current.length) && <ServiceNotice freshness={freshness}/>}
+    {!paused && current.length > 0 && <>
+      <div className="provenance"><Badge kind={simulated ? 'SIMULATED' : 'PREDICTED'}/></div>
+      <section className="section"><h2>How full in the next hour?</h2><p className="meta">Each route shows its busiest direction. A dash means no forecast is available.</p>
+        <LoadLegend title="Expected fullness"/>
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Route forecasts"><table className="data-table forecast-table"><thead><tr><th scope="col">Route</th>{[15,30,60].map(h => <th key={h} scope="col">In {h} min</th>)}</tr></thead><tbody>{codes.map(code => <tr key={code}><th scope="row">{chip(code)}</th>{[15,30,60].map(h => {const values=current.filter(p => p.route===code && p.horizon_min===h);return <LoadCell key={h} value={values.length ? Math.max(...values.map(p => p.pred_p50)) : null}/>;})}</tr>)}</tbody></table></div>
+      </section>
+      <section className="section"><h2>Highest chance of crowding in 30 min</h2>
+        {!top.length && <EmptyState title="No 30 min forecast yet">Other available times are shown above. Check back after the next forecast update.</EmptyState>}
+        <div className="cards">{top.map((p,i) => <article key={p.route+'-'+p.direction+'-'+i}><h3>{chip(p.route)}</h3>{directionName(p.direction_name) && <p className="meta">Toward {directionName(p.direction_name)}</p>}
+          <p><span className="big-stat">{p.p_crowd>0 && p.p_crowd<0.01 ? '<1%' : pct(p.p_crowd)}</span> chance of being crowded</p>
+          <p>Expected to be {pct(p.pred_p50)} full.<br/>Likely range: {pct(p.pred_p10)}–{pct(p.pred_p90)}.</p>
+          <IntervalBar p10={p.pred_p10} p50={p.pred_p50} p90={p.pred_p90}/>
+          {!!p.top_factors?.length && <><h4>What affects this estimate?</h4><ul className="factor-list">{[...p.top_factors].sort((a,b) => Math.abs(Number(b.contribution))-Math.abs(Number(a.contribution))).slice(0,3).map((f,j) => <li key={j}>{factorPhrase(f.family,f.feature,Number(f.contribution))}</li>)}</ul><p className="meta">↑ More riders expected · ↓ Fewer riders expected</p></>}
+        </article>)}</div>
+      </section>
+    </>}
+    <AboutThisData sources={{'Forecast source': rows[0]?.source, 'Model versions': [...new Set(rows.map(p => p.model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(rows.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable', 'Last scored': freshness?.last_scoring_ts}}><p>Likely range is the model’s 10th–90th percentile interval, not a guarantee. Colours show the share of bus capacity occupied. Predictions trained on simulated history are labelled Predicted; fully simulated fallback estimates are labelled Simulated. Expired forecasts are hidden.</p></AboutThisData>
+  </main>;
 }

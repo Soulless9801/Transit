@@ -26,8 +26,8 @@ test('dates and display values', () => {
 
 test('stop resolution and ordering', () => {
   const options = stopOptions([{properties: {stop_id: '1', stop_code: 'A', stop_name: 'Unique'}}, {properties: {stop_id: '2', stop_code: 'B', stop_name: 'Shared'}}, {properties: {stop_id: '3', stop_code: 'C', stop_name: 'Shared'}}]);
-  assert.equal(resolveStop(options, ' unique (a) ')?.id, '1');
-  assert.equal(resolveStop(options, 'a')?.id, '1');
+  assert.equal(resolveStop(options, ' unique ')?.id, '1');
+  assert.equal(resolveStop(options, 'a'), null);
   assert.equal(resolveStop(options, 'Unique')?.id, '1');
   assert.equal(resolveStop(options, 'shared'), null);
   assert.equal(resolveStop(options, 'unknown'), null);
@@ -39,7 +39,7 @@ test('history series and hotspot grid', () => {
   const row = (route: string, direction: string, hour: string, p90: number | null, n: number | null) => ({route_short_name: route, direction_id: direction, window_start: `2026-11-09T${hour}:00:00Z`, p90_load_factor: p90, n_pings: n});
   const rows = [row('1', 'b', '02', 0.3, 2), row('1', 'a', '01', 0.4, 3), row('1', 'a', '02', 0.8, 4), row('1', 'b', '03', 0.6, 5), row('2', 'a', '03', 0.9, 6), row('1', 'a', '03', null, 7)];
   const series = historySeries(rows, '1');
-  assert.deepEqual(series.map(s => [s.direction, s.label]), [['a', 'Direction 1'], ['b', 'Direction 2']]);
+  assert.deepEqual(series.map(s => [s.direction, s.label]), [['a', 'Route service'], ['b', 'Route service']]);
   assert.deepEqual(series.map(s => s.points.map(p => p.t.getUTCHours())), [[1, 2], [2, 3]]);
   const grid = hotspotGrid(rows, 2);
   assert.deepEqual(grid.slots.map(s => s.getUTCHours()), [2, 3]);
@@ -82,7 +82,7 @@ test('freshness status is explicit for unknown, delayed, stale and fallback data
   assert.equal(freshnessLevel({...night, bus_snapshot_age_s: 601}), 'red');
   assert.equal(freshnessLevel({...night, in_service: true}), 'ok');
   assert.equal(freshnessLevel({...night, data_expected: true}), 'red');
-  assert.deepEqual([null, NaN, 0, 59, 60, 3600].map(ageLabel), ['unknown', 'unknown', '0s', '59s', '1m', '1.0h']);
+  assert.deepEqual([null, NaN, 0, 59, 60, 3600].map(ageLabel), ['unknown', 'unknown', '0 s', '59 s', '1 min', '1 hr']);
 });
 
 test('comparison filters observed matches and computes inclusive interval coverage', async () => {
@@ -96,4 +96,51 @@ test('comparison filters observed matches and computes inclusive interval covera
   assert.ok(Math.abs(metrics.mae! - 1.1 / 3) < 1e-10);
   assert.equal(metrics.coverage, 2 / 3);
   assert.deepEqual(comparisonMetrics([]), {n: 0, mae: null, coverage: null});
+});
+
+
+test('route chips sort naturally and always meet AA contrast, including unsafe GTFS preferences', async () => {
+  const {safeTextColor} = await import('./format.ts');
+  assert.deepEqual(['40-41','03-05','03','01-04','01','12','05'].sort(compareRoutes), ['01','01-04','03','03-05','05','12','40-41']);
+  const {readFileSync} = await import('node:fs');
+  const routes=JSON.parse(readFileSync(new URL('../public/static/routes.json',import.meta.url),'utf8'));
+  for (const r of routes) assert.ok(contrastRatio('#'+r.route_color,safeTextColor(r.route_color,r.route_text_color)) >= 4.5, r.route_short_name);
+  assert.equal(safeTextColor('500000','000000'),'#ffffff');
+  assert.equal(safeTextColor('FFFFFF','FFFFFF'),'#000000');
+  assert.equal(safeTextColor('500000','FFFFFF'),'#FFFFFF');
+});
+
+test('friendly times use Central dates across midnight and daylight-saving transitions', async () => {
+  const {friendlyDate,serviceMessage} = await import('./format.ts');
+  assert.equal(friendlyDate('2026-11-08T01:30:00Z',new Date('2026-11-08T02:00:00Z')), 'Today 7:30 PM');
+  assert.equal(friendlyDate('2026-11-14T06:00:00Z',new Date('2026-11-08T02:00:00Z'),true),'Sat Nov 14');
+  assert.equal(formatTime(new Date('2026-11-01T06:30:00Z')),'1:30 AM');
+  assert.equal(formatTime(new Date('2026-11-01T07:30:00Z')),'1:30 AM');
+  assert.equal(friendlyDate('bad'),'Time to be announced');
+  assert.match(serviceMessage({in_service:false,next_scheduled_ts:'2026-11-08T15:00:00Z'} as any), /9:00 AM CT/);
+});
+
+test('stop labels disambiguate names without exposing internal IDs', async () => {
+  const {readFileSync} = await import('node:fs');
+  const features=JSON.parse(readFileSync(new URL('../public/static/stops.geojson',import.meta.url),'utf8')).features;
+  const options=stopOptions(features);
+  assert.equal(new Set(options.map(o => o.label)).size,options.length);
+  for(const option of options) {
+    assert.equal(resolveStop(options,option.label)?.id,option.id);
+    assert.ok(!option.label.includes(option.id));
+  }
+  assert.equal(resolveStop(options,'MSC'),null);
+});
+
+test('factor explanations and notices hide implementation vocabulary', async () => {
+  const {factorPhrase,cleanText,directionName,readableName} = await import('./format.ts');
+  assert.equal(factorPhrase('Class change','class_change_15m',0.12),'↑ Classes letting out');
+  assert.equal(factorPhrase('Event','event_uplift',-0.1),'↓ Less event activity nearby');
+  assert.equal(factorPhrase('Weather','rain_mm',0.1),'↑ Rain');
+  assert.equal(factorPhrase('Bunching','headway_cv',0.1),'↑ Buses bunching');
+  assert.equal(factorPhrase('Time','hour',0.1),'↑ Usually busy at this time');
+  assert.equal(cleanText('<p>Reed Arena (ID: 0053)&nbsp; &amp; MSC</p>'),'Reed Arena & MSC');
+  assert.equal(directionName('0'),''); assert.equal(directionName('Direction 1'),'');
+  assert.equal(directionName('MSC'),'MSC');
+  assert.equal(readableName('rudder_auditorium'),'Rudder Auditorium');
 });

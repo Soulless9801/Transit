@@ -1,28 +1,14 @@
-import {useEffect, useState} from 'react';
-import {ageLabel, formatDateTime, freshnessLevel, parseUtc} from './format';
+import {ageLabel, friendlyDate, freshnessLevel, parseUtc} from './format';
 import type {Freshness} from './format';
+import {useApi} from './ui';
 
 export default function FreshnessChip() {
-  const [freshness, setFreshness] = useState<Freshness>();
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    const poll = async () => {
-      try {
-        const response = await fetch('/api/meta', {signal: controller.signal});
-        if (!response.ok) throw new Error('Metadata unavailable');
-        const data = await response.json();
-        if (!controller.signal.aborted) { setFreshness(data.freshness); setError(false); }
-      } catch { if (!controller.signal.aborted) setError(true); }
-    };
-    void poll(); const timer = setInterval(poll, 15000);
-    return () => { controller.abort(); clearInterval(timer); };
-  }, []);
-  const scoring = parseUtc(freshness?.last_scoring_ts);
+  const meta = useApi<{freshness: Freshness}>('/api/meta',15000);
+  const freshness = meta.data?.freshness;
   const next = parseUtc(freshness?.next_scheduled_ts);
-  const level = error ? 'red' : freshness ? freshnessLevel(freshness) : 'amber';
+  const level = meta.error ? 'red' : freshness ? freshnessLevel(freshness) : 'amber';
   return <div className={`freshness freshness--${level}`} role="status" aria-live="polite">
-    <strong>{error ? 'Status unavailable' : level === 'idle' ? `No buses scheduled${next ? ` · next ${formatDateTime(next)} CT` : ''}` : level === 'ok' ? 'Data current' : level === 'red' ? 'Data stale / unavailable' : 'Data delayed'}</strong>
-    <span>Bus {ageLabel(freshness?.bus_snapshot_age_s)} · Scored {scoring ? `${formatDateTime(scoring)} CT` : 'unknown'} · Pipeline lag {ageLabel(freshness?.pipeline_lag_s)}</span>
+    <strong>{meta.loading ? 'Checking bus service…' : meta.error ? 'Live status is temporarily unavailable' : freshness?.in_service === false ? 'Buses are off for now' : level === 'ok' ? 'Bus data is up to date' : level === 'red' ? 'Live updates are unavailable' : 'Bus updates are delayed'}</strong>
+    <span>{freshness?.in_service === false ? (next ? `Next service: ${friendlyDate(next)} CT` : 'Check back when service resumes') : freshness ? `Last bus update: ${ageLabel(freshness.bus_snapshot_age_s)} ago` : 'Bus times are Central time'}</span>
   </div>;
 }

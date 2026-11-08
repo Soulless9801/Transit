@@ -1,256 +1,55 @@
 import {useMemo, useState} from 'react';
 import {campusHour, pct, resolveStop, shiftLabel, stopOptions} from '../format';
-import type {StopOption} from '../format';
-import {Badge, PageHeader, Status, useApi} from '../ui';
-
-type GeoJsonStops = {
-  type?: string;
-  features: {
-    properties: {
-      stop_id: string;
-      stop_code?: string;
-      stop_name: string;
-      routes?: string[];
-    };
-  }[];
-};
-
-type PlanOption = {
-  route: string;
-  direction: string;
-  shift: -10 | 0 | 10 | 20;
-  wait_min: number;
-  ride_min: number;
-  walk_min: number;
-  crowding: number;
-  score: number;
-  reason: string;
-  source: string;
-};
-
+import type {Freshness, Route} from '../format';
+import {AboutThisData, Badge, EmptyState, PageHeader, RouteChip, ServiceNotice, Status, StopName, StopPicker, TimeLabel, useApi} from '../ui';
+type Stops = {features: {geometry?: {coordinates: number[]}; properties: {stop_id: string; stop_name: string; routes?: string[]}}[]};
+type Option = {route: string; direction: string; shift: number; wait_min: number; ride_min: number; walk_min: number; crowding: number; score: number; source: string; origin_stop_name?: string; destination_stop_name?: string; crowding_provenance?: string; crowding_scored_at?: string};
 export default function PlanTrip() {
-  const stopsApi = useApi<GeoJsonStops>('/api/stops');
-  const stops = stopsApi.data ?? {features: []};
-  const options = useMemo(() => stopOptions(stops.features ?? []), [stops]);
-
-  const [fromText, setFromText] = useState('');
-  const [toText, setToText] = useState('');
-  const [fromError, setFromError] = useState('');
-  const [toError, setToError] = useState('');
-  const [hour, setHour] = useState<number>(() => Math.max(5, Math.min(23, campusHour())));
-
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [results, setResults] = useState<PlanOption[]>([]);
-
-  const handleSwap = () => {
-    setFromText(toText);
-    setToText(fromText);
-    setFromError('');
-    setToError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const originStop: StopOption | null = resolveStop(options, fromText);
-    const destStop: StopOption | null = resolveStop(options, toText);
-
-    let hasError = false;
-    let nextFromError = '';
-    let nextToError = '';
-
-    if (!originStop) {
-      nextFromError = 'Choose a stop from the list.';
-      hasError = true;
-    }
-    if (!destStop) {
-      nextToError = 'Choose a stop from the list.';
-      hasError = true;
-    }
-    if (originStop && destStop && originStop.id === destStop.id) {
-      nextToError = 'Origin and destination must differ.';
-      hasError = true;
-    }
-
-    setFromError(nextFromError);
-    setToError(nextToError);
-
-    if (hasError || !originStop || !destStop) {
-      return;
-    }
-
-    setLoading(true);
-    setSearched(true);
-    setApiError('');
-
-    try {
-      const res = await fetch(
-        `/api/plan?origin=${encodeURIComponent(originStop.id)}&destination=${encodeURIComponent(destStop.id)}&hour=${hour}`
-      );
-      if (!res.ok) throw new Error(`Could not load /api/plan (${res.status})`);
-      const data: PlanOption[] = await res.json();
-      setResults(data);
-    } catch (err) {
-      setApiError(String(err instanceof Error ? err.message : err));
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const displayedOptions = results.slice(0, 6);
-
-  return (
-    <main className="dashboard" aria-labelledby="page-title">
-      <PageHeader
-        title="Plan my trip"
-        lede="Compare direct routes between two stops, including stops within a 400 m walk. Times are schedule estimates; crowding is predicted."
-      />
-      <Status loading={stopsApi.loading} error={stopsApi.error || apiError} />
-
-      <datalist id="stop-options">
-        {options.map(o => (
-          <option key={o.id} value={o.label} />
-        ))}
-      </datalist>
-
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        style={{display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '480px', margin: '24px 0'}}
-      >
-        <label className="field">
-          From
-          <input
-            list="stop-options"
-            autoComplete="off"
-            placeholder="Type a stop name"
-            value={fromText}
-            onChange={e => {
-              setFromText(e.target.value);
-              if (fromError) setFromError('');
-            }}
-            aria-invalid={fromError ? true : undefined}
-            aria-describedby={fromError ? 'from-error' : undefined}
-          />
-          {fromError && (
-            <p className="field-error" id="from-error">
-              Error: {fromError}
-            </p>
-          )}
-        </label>
-
-        <button
-          type="button"
-          className="btn btn--ghost"
-          aria-label="Swap origin and destination"
-          onClick={handleSwap}
-          style={{alignSelf: 'flex-start'}}
-        >
-          Swap
-        </button>
-
-        <label className="field">
-          To
-          <input
-            list="stop-options"
-            autoComplete="off"
-            placeholder="Type a stop name"
-            value={toText}
-            onChange={e => {
-              setToText(e.target.value);
-              if (toError) setToError('');
-            }}
-            aria-invalid={toError ? true : undefined}
-            aria-describedby={toError ? 'to-error' : undefined}
-          />
-          {toError && (
-            <p className="field-error" id="to-error">
-              Error: {toError}
-            </p>
-          )}
-        </label>
-
-        <label className="field">
-          Departure hour
-          <select value={hour} onChange={e => setHour(Number(e.target.value))}>
-            {Array.from({length: 19}, (_, i) => i + 5).map(h => (
-              <option key={h} value={h}>
-                {`${h % 12 || 12}:00 ${h < 12 ? 'AM' : 'PM'}`}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          className="btn"
-          disabled={loading}
-          style={{alignSelf: 'flex-start'}}
-        >
-          {loading ? 'Searching…' : 'Find options'}
-        </button>
-      </form>
-
-      {searched && (
-        <section aria-live="polite">
-          <h2>Options</h2>
-          {loading ? (
-            <p role="status" className="status-msg">
-              Searching…
-            </p>
-          ) : apiError ? null : displayedOptions.length === 0 ? (
-            <p>
-              No direct route connects these stops, even with a 400 m walk. Try a nearby stop.
-            </p>
-          ) : (
-            <>
-              <ol className="cards" aria-label="Trip options, best first" style={{listStyle: 'none', padding: 0}}>
-                {displayedOptions.map((opt, i) => (
-                  <li key={`${opt.route}-${opt.direction}-${opt.shift}-${i}`}>
-                    <article>
-                      <h3>
-                        Route {opt.route}
-                        {i === 0 && <> <Badge kind="BEST OPTION" /></>}
-                      </h3>
-                      <p className="lede">{shiftLabel(opt.shift)}</p>
-                      <p>
-                        <span className="big-stat">{Math.round(opt.score)} min</span>{' '}
-                        <span className="stat-label">effective trip time</span>
-                      </p>
-                      <dl className="facts">
-                        <dt>Wait</dt>
-                        <dd>{opt.wait_min} min</dd>
-                        <dt>Ride</dt>
-                        <dd>{opt.ride_min} min</dd>
-                        <dt>Walk</dt>
-                        <dd>{opt.walk_min} min</dd>
-                        <dt>Predicted load</dt>
-                        <dd>
-                          {pct(opt.crowding)}
-                          {opt.crowding >= 0.75 ? ' (crowded)' : ''}
-                        </dd>
-                      </dl>
-                      <p className="meta">
-                        <Badge kind="DERIVED · GTFS" />{' '}
-                        <Badge kind="PREDICTED" />
-                        {(opt.source === 'mock' || opt.source === 'simulated') && (
-                          <> <Badge kind="SIMULATED" /></>
-                        )}
-                      </p>
-                    </article>
-                  </li>
-                ))}
-              </ol>
-              <p className="meta">
-                Effective time = half the scheduled headway + ride + walk + 20 min × predicted load.
-              </p>
-            </>
-          )}
-        </section>
-      )}
-    </main>
-  );
+  const stops = useApi<Stops>('/api/stops');
+  const routes = useApi<Route[]>('/api/routes');
+  const meta = useApi<{freshness: Freshness}>('/api/meta');
+  const options = useMemo(() => stopOptions(stops.data?.features ?? []),[stops.data]);
+  const [from,setFrom] = useState(''), [to,setTo] = useState(''), [hour,setHour] = useState(campusHour);
+  const [fromError,setFromError] = useState(''), [toError,setToError] = useState('');
+  const [loading,setLoading] = useState(false), [error,setError] = useState(''), [searched,setSearched] = useState(false);
+  const [results,setResults] = useState<Option[]>([]);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); const origin=resolveStop(options,from), destination=resolveStop(options,to);
+    setFromError(origin ? '' : 'Choose a stop name from the suggestions.');
+    setToError(!destination ? 'Choose a stop name from the suggestions.' : origin?.id===destination.id ? 'Choose a different destination.' : '');
+    if (!origin || !destination || origin.id===destination.id) return;
+    setLoading(true); setSearched(true); setResults([]); setError('');
+    try {const response=await fetch(`/api/plan?origin=${encodeURIComponent(origin.id)}&destination=${encodeURIComponent(destination.id)}&hour=${hour}`); if (!response.ok) throw Error(); setResults(await response.json());}
+    catch {setError('Trip options are temporarily unavailable. Please try again.');}
+    finally {setLoading(false);}
+  }
+  const paused = meta.data?.freshness.in_service === false;
+  return <main className="dashboard" aria-labelledby="page-title">
+    <PageHeader title="Plan my trip" lede="Search for two stop names to compare direct bus routes and nearby stops within about a 5 min walk."/>
+    {paused && <><ServiceNotice freshness={meta.data?.freshness} noun="Buses"/><p className="meta">You can still explore typical trip options for a future trip. These are estimates, not departures for a particular date.</p></>}
+    <Status loading={stops.loading} error={stops.error || routes.error}/>
+    <form onSubmit={submit} noValidate className="trip-form">
+      <StopPicker label="From" value={from} onChange={v => {setFrom(v);setFromError('');setSearched(false);}} options={options} error={fromError}/>
+      <button type="button" className="btn btn--ghost" onClick={() => {setFrom(to);setTo(from);setFromError('');setToError('');setSearched(false);}} aria-label="Swap origin and destination">Swap stops</button>
+      <StopPicker label="To" value={to} onChange={v => {setTo(v);setToError('');setSearched(false);}} options={options} error={toError}/>
+      <label className="field">Typical departure hour (Central)<select value={hour} onChange={e => {setHour(Number(e.target.value));setSearched(false);}}>{Array.from({length:24},(_,h) => <option key={h} value={h}>{h%12 || 12}:00 {h<12 ? 'AM' : 'PM'}</option>)}</select></label>
+      <button className="btn" disabled={loading || stops.loading || !options.length}>{loading ? 'Finding routes…' : 'Find trip options'}</button>
+    </form>
+    <Status loading={loading} error={error}/>
+    {searched && !loading && !error && <section aria-live="polite"><h2>Your trip options</h2>
+      {!results.length ? <EmptyState title="No direct bus route found">Try a nearby stop. This planner checks direct routes and stops within 400 m; it does not yet plan transfers.</EmptyState> : <>
+        <p className="meta">Best matches first, balancing wait, ride, walking and crowding. Times are typical estimates.</p>
+        <ol className="cards trip-results">{results.slice(0,6).map((o,i) => <li key={i}><article>
+          {i===0 && <span className="eyebrow">BEST MATCH</span>}<h3><RouteChip code={o.route} route={routes.data?.find(r => r.route_short_name===o.route)}/></h3>
+          <p>{o.shift === 0 ? 'At your selected hour' : shiftLabel(o.shift)}</p>
+          <p><span className="big-stat">{Math.round(o.wait_min+o.ride_min+o.walk_min)} min</span> estimated travel time</p>
+          <dl className="facts"><dt>Wait</dt><dd>About {Math.round(o.wait_min)} min</dd><dt>Ride</dt><dd>{Math.round(o.ride_min)} min</dd><dt>Walk</dt><dd>{Math.round(o.walk_min)} min</dd><dt>Expected fullness</dt><dd>{pct(o.crowding)} <Badge kind={o.crowding_provenance || (['mock','simulated'].includes(o.source) ? 'SIMULATED' : 'PREDICTED')}/></dd></dl>
+          {o.origin_stop_name && <p className="meta">Board at <StopName name={o.origin_stop_name}/><br/>Get off at <StopName name={o.destination_stop_name || ''}/></p>}
+          {o.crowding_scored_at && <p className="meta">Crowding estimate updated <TimeLabel value={o.crowding_scored_at}/>.</p>}
+          <p className="meta">{o.crowding>=0.75 ? 'May be crowded. Allow extra time.' : 'Expected to have room.'}</p>
+        </article></li>)}</ol>
+      </>}
+    </section>}
+    <AboutThisData sources={{'Stops': options.length, 'Trip options': searched ? results.length : 'Choose stops to compare'}}><p>Stop names and typical wait/ride times come from GTFS schedules, not live departure predictions. Same-name stops show their served routes and, where needed, the north or south side. Actual service depends on the date. A short walk may lead to a different boarding stop, shown on the result.</p><p>Ranking uses half the typical headway + ride + walk + 20 × estimated fullness. When a crowding forecast is missing, the planner assumes 40% full and labels that estimate Simulated.</p></AboutThisData>
+  </main>;
 }
