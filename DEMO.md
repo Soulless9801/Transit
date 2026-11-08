@@ -4,7 +4,8 @@ Workspace: `https://dbc-595c228e-76f6.cloud.databricks.com` (profile `transit`).
 
 | Tab | Link |
 |---|---|
-| App | https://aggiepulse-7474654155800707.aws.databricksapps.com |
+| App (public, no login) | https://aggiepulse-n5me.onrender.com |
+| App (Databricks, login) | https://aggiepulse-7474654155800707.aws.databricksapps.com |
 | Ops dashboard | https://dbc-595c228e-76f6.cloud.databricks.com/dashboardsv3/01f1db0925b81a47ad018d8fc898deaa/published?w=7474654155800707 |
 | Genie | https://dbc-595c228e-76f6.cloud.databricks.com/genie/rooms/01f1db093b021033aabbdb939c631a81?w=7474654155800707 |
 | Core pipeline | https://dbc-595c228e-76f6.cloud.databricks.com/pipelines/206b4370-b5cc-48eb-8eba-932dcea5dc95 |
@@ -17,7 +18,7 @@ Workspace: `https://dbc-595c228e-76f6.cloud.databricks.com` (profile `transit`).
 1. **Health:** the header chip in the app is green; `cat aggiepulse/data/collector_heartbeat.json` shows recent successes; `SELECT * FROM transit.gold.ops_health ORDER BY checked_ts DESC LIMIT 1`.
 2. **Freeze:** `cd aggiepulse && DATABRICKS_CONFIG_PROFILE=transit uv run --with databricks-sdk python scripts/ops/freeze.py --label demo`. Note the snapshot id.
 3. **Rehearse Genie** with the exact question below, so you know the answer.
-4. **Network:** TAMU's campus network (Cisco Umbrella) has blocked the app's hostname as malware. A Firefox certificate warning or a `malware.opendns.com` page means that block. Don't click through it; present from a phone hotspot.
+4. **Network:** TAMU's campus network (Cisco Umbrella) blocks the Databricks app hostname as malware; a Firefox certificate warning or a `malware.opendns.com` page means that block. Present from the public Render link (https://aggiepulse-n5me.onrender.com), which resolves normally on campus, or use a phone hotspot. Check `aggiepulse/scripts/ops/keepalive.sh status` shows recent 200s so the free-tier site is awake.
 5. **Fallback:** if live data looks thin (nights, weekends) or TripSpark is down, use **Replay** on the live map instead of live buses. Keep a screen recording of a good run as the last resort.
 
 ## Script

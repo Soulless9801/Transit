@@ -2,7 +2,7 @@
 
 Live occupancy and short-term crowding forecasts for Texas A&M buses.
 
-**Site:** https://aggiepulse-7474654155800707.aws.databricksapps.com (sign in with a Databricks account that has access to the `transit` workspace).
+**Site:** https://aggiepulse-n5me.onrender.com (public, read-only). The Databricks-hosted original, https://aggiepulse-7474654155800707.aws.databricksapps.com, needs a login to the `transit` workspace.
 
 ## Pages
 
