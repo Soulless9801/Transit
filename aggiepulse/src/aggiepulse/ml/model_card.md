@@ -1,7 +1,7 @@
 # Model card: AggiePulse crowding forecasts (`transit.ml.crowding_h15/_h30/_h60`)
 
-**Status: a demo model trained on a simulated prior.** Its only test on real
-riders so far is a few minutes of weekend APC data, which is too little to
+**Status: a demo model trained on a simulated prior.** Its tests on real
+riders so far cover only a few hours of weekend APC data, which is too little to
 conclude anything (see the metrics). Every number it produces should be shown
 as **PREDICTED**, and the app should say it was trained on simulated history.
 
@@ -19,7 +19,7 @@ as **PREDICTED**, and the app should say it was trained on simulated history.
   claims about how big real event or weather effects are; any stop-level
   demand estimate.
 
-## Data
+## Original version 1 reference data
 
 | | Source | Dates (UTC) | n |
 |---|---|---|---|
@@ -34,8 +34,9 @@ as **PREDICTED**, and the app should say it was trained on simulated history.
   groups, and event and weather effects are **our assumptions**. About 1.2% of
   in-service weekday windows are crowded (3.2% on on-campus routes), and that
   rate is also an assumption.
-- Observed data never fits or selects anything. It is reported on its own line
-  with its n.
+- Observed data never fits trees or the seasonal baseline. When sufficient, an
+  early observed calibration partition widens intervals; a later untouched
+  observed evaluation partition controls promotion. Both have explicit n.
 - Splits are forward in time only. Hyperparameters and tree counts are chosen on
   validation, and the final models are fit on train only, the same data as the
   baselines. Labels whose windows cross a split boundary are dropped.
@@ -59,7 +60,7 @@ as **PREDICTED**, and the app should say it was trained on simulated history.
 - **Event uplift**: p50 minus p50 with event features neutralised (exposure set
   to 0, venue 'none', event timings null). It is a **simulated prior**.
 
-## Metrics (holdout only; load-factor units)
+## Original version 1 metrics (holdout only; load-factor units)
 
 | Origin | Horizon | Model | n | MAE | RMSE | Pinball p50 | p10–p90 coverage | Crowded (n) | PR-AUC | Brier |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -82,8 +83,44 @@ as **PREDICTED**, and the app should say it was trained on simulated history.
 | **observed holdout (too small to conclude anything)** | 60 min | B1 | 19 | 0.126 | 0.145 | 0.0631 | 11% | 0 | n/a (no positives) | 0.0001 |
 | **observed holdout (too small to conclude anything)** | 60 min | LightGBM | 19 | 0.063 | 0.074 | 0.0315 | 32% | 0 | n/a (no positives) | 0.0000 |
 
-Promotion gate: LightGBM must beat B1 on simulated-test MAE at 30 minutes.
-**Passed** (MLflow run `d7a4c0e82ff44fd687bbaecbb6510236`, training job run 1102403897821456): LightGBM simulated-test MAE at 30 minutes is 0.0474, against 0.0813 for B1 and 0.0783 for B0 (n = 12,945). Version 1 of each horizon is `@champion`. On the observed holdout B0 has the lowest MAE at 15 and 30 minutes, but n = 45 and n = 23 are too small to rank anything.
+Promotion now uses **observed h30 MAE < B1** once the evaluated observed
+holdout has **at least 200 nonnull h30 labels spanning at least two distinct
+America/Chicago weekday dates**. Each route-direction/t0 is one labelled
+window; the 200 count does not imply 200 independent observations. Until then,
+the fallback gate is simulated-test h30 MAE < B1 and every version is tagged
+`gate=simulated`. Once the observed threshold is met, a simulated win cannot
+override an observed loss. Both origin comparisons (B0, B1, LightGBM, n), the
+weekday count, rule and decision are model-version tags and the MLflow
+`metrics/promotion_gate.json` artifact. Models are registered on either outcome;
+champion moves only on a pass. Scoring still loads `@champion` at every run.
+
+The original version 1 passed the former simulated-only gate (MLflow run
+`d7a4c0e82ff44fd687bbaecbb6510236`): h30 LightGBM MAE 0.0474 vs B1 0.0813,
+n=12,945. The original observed results above are historical, not validation
+of the new gate. The deployment verification below records the latest run.
+
+### Observed interval calibration
+
+For each horizon, split observed labelled rows by distinct t0: the earliest
+half is calibration; the later half is evaluation. Keep all route-directions
+at a t0 together and purge the gap until all calibration target windows end
+(horizon + 15 minutes). Calibration activates only with >=100 calibration
+labels **and** >=100 remaining evaluation labels; otherwise every observed
+label remains evaluation and widening is zero. The observed promotion gate's
+200 labels refer to this untouched evaluation suffix, so typically >=400 total
+observed labels are needed once calibration activates.
+
+For each calibration label, score `max(p10-y, y-p90, 0)`. Widen both ends by
+the sorted score at rank `ceil((n+1)*0.8)` (bounded by n), retaining p50 and
+clipping to [0,1.5]. The quantiles are therefore calibrated interval bounds,
+not newly fitted conditional quantiles. No tree/classifier/B1 fits observed
+labels. Report before/after coverage on the **same later evaluation rows**;
+never report calibration-fit coverage as holdout coverage. Serial/route
+correlation and domain shift limit conformal exchangeability: this is a
+practical widening rule, not a guarantee of 80% real-world coverage. Small
+weekend data cannot demonstrate calibration. Each model contains its widening
+and `metadata.calibration`, also logged in
+`metrics/observed_calibration.json` and model-version calibration tags.
 
 How to read this:
 - The simulated lines only show that the model recovers the structure we put
@@ -149,6 +186,53 @@ databricks bundle run ml_train -p transit      # ml-data refresh → train → e
   `uv run python -m aggiepulse.features.job --local-output DIR` then
   `uv run python src/aggiepulse/ml/job.py --step all --local-dir DIR --trials 2`
   (uses a SQLite MLflow store and skips the registry).
-- Retrain when observed weekday data exists. Once enough observed windows are
-  collected, move observed data into a forward observed validation split, and
-  make the promotion gate use observed MAE.
+- `ml_train` also runs nightly at 03:30 America/Chicago, refreshing ML data
+  before train → evaluate → conditional promote. Failure email goes to the job
+  owner. See `scripts/ops/RUNBOOK.md` for alias rollback, snapshots, health and
+  schedule cost controls.
+
+## Deployment verification (2026-11-07 Chicago)
+
+Training job run `216813119104474`, MLflow parent `d56075208bed48769fdbc40640926736`.
+Training-set Delta version `96`;
+seasonal-profile version `10`.
+The gate **PASSED** using `simulated`:
+LightGBM h30 MAE 0.0482, B1 0.0818, n=12646.
+Observed h30 n=86, across
+0 weekday dates: the observed acceptance bar is not yet
+evaluable. This remains a simulated-prior demo model.
+
+| Origin | Horizon | Model | n | MAE | p10–p90 coverage |
+|---|---|---|---:|---:|---:|
+| simulated | 15 min | B0 | 12681 | 0.0730 | 82.2% |
+| simulated | 15 min | B1 | 12681 | 0.0818 | 63.6% |
+| simulated | 15 min | LightGBM | 12681 | 0.0469 | 71.6% |
+| simulated | 30 min | B0 | 12646 | 0.0801 | 82.0% |
+| simulated | 30 min | B1 | 12646 | 0.0818 | 63.5% |
+| simulated | 30 min | LightGBM | 12646 | 0.0482 | 71.2% |
+| simulated | 60 min | B0 | 12578 | 0.0748 | 81.9% |
+| simulated | 60 min | B1 | 12578 | 0.0817 | 63.5% |
+| simulated | 60 min | LightGBM | 12578 | 0.0491 | 71.7% |
+| observed | 15 min | B0 | 140 | 0.0783 | 58.6% |
+| observed | 15 min | B1 | 140 | 0.1234 | 18.6% |
+| observed | 15 min | LightGBM | 140 | 0.0712 | 27.9% |
+| observed | 30 min | B0 | 86 | 0.0767 | 73.3% |
+| observed | 30 min | B1 | 86 | 0.1236 | 17.4% |
+| observed | 30 min | LightGBM | 86 | 0.0667 | 30.2% |
+| observed | 60 min | B0 | 118 | 0.0603 | 75.4% |
+| observed | 60 min | B1 | 118 | 0.1109 | 17.8% |
+| observed | 60 min | LightGBM | 118 | 0.0544 | 29.7% |
+
+Observed calibration, evaluated on separate later rows when active:
+
+| Horizon | Calibration n | Evaluation n | Widening | Coverage before | Coverage after | Status |
+|---|---:|---:|---:|---:|---:|---|
+| 15 min | 0 | 140 | 0.0000 | 27.9% | 27.9% | insufficient_observed_calibration |
+| 30 min | 0 | 86 | 0.0000 | 30.2% | 30.2% | insufficient_observed_calibration |
+| 60 min | 0 | 118 | 0.0000 | 29.7% | 29.7% | insufficient_observed_calibration |
+
+Registered versions: h15: v2, h30: v2, h60: v2.
+`@champion` moved to those versions.
+Intervals remain uncalibrated where calibration n=0; unchanged before/after
+coverage is not an improvement or evidence of adequate coverage. The MLflow
+artifacts and `scripts/ops/verification.json` retain exact metrics and decisions.

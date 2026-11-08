@@ -54,6 +54,9 @@ class CrowdingModel(mlflow.pyfunc.PythonModel):
         mid = np.clip(q[:, 1], *LOAD_BOUNDS)
         low = np.minimum(np.clip(q[:, 0], *LOAD_BOUNDS), mid)
         high = np.maximum(np.clip(q[:, 2], *LOAD_BOUNDS), mid)
+        widening = getattr(self, 'interval_widening', 0.)  # v1 pickles remain loadable
+        low = np.clip(low - widening, *LOAD_BOUNDS)
+        high = np.clip(high + widening, *LOAD_BOUNDS)
         return x, low, mid, high, q[:, 1]
 
     def crowd_probability(self, x):

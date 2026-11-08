@@ -98,6 +98,7 @@ def load_inputs(args, spark):
 def step_train(args, spark):
     import mlflow
 
+    from aggiepulse.ml.calibration import calibrate
     from aggiepulse.ml.train import HORIZONS, fit_horizon
 
     training, season, versions = load_inputs(args, spark)
@@ -126,6 +127,7 @@ def step_train(args, spark):
             metadata = {'horizon': horizon, 'train_end': train_end,
                         'training_data_origin': 'simulated', **tags}
             model, baselines, summary = fit_horizon(training, horizon, args.trials, metadata, season)
+            summary['calibration'] = calibrate(model, training, horizon)
             summaries[horizon] = summary
             mlflow.log_params({f'h{horizon}_{k}': v for k, v in summary['best_params'].items()})
             mlflow.log_metrics({f'h{horizon}_best_validation_mae': summary['best_validation_mae'],
@@ -181,7 +183,7 @@ def step_evaluate(args, spark, run_id=None):
             training = normalise_training(read_table(spark, table, int(recorded))) if 'training_set' in table else training
     models, baselines = load_run_models(run_id)
     table = evaluate_models(training, models, baselines)
-    gate = promotion_gate(table)
+    gate = promotion_gate(table, training)
     with mlflow.start_run(run_id=run_id):
         summary = headline(table)
         for row in summary.to_dict('records'):
@@ -190,6 +192,8 @@ def step_evaluate(args, spark, run_id=None):
                     mlflow.log_metric(f"{row['origin']}_h{row['horizon']}_{row['model']}_{metric}", float(row[metric]))
         mlflow.log_table(table, 'metrics/by_group.json')
         mlflow.log_text(summary.to_csv(index=False), 'metrics/headline.csv')
+        mlflow.log_dict({str(h): m.metadata.get('calibration', {}) for h, m in models.items()},
+                        'metrics/observed_calibration.json')
         mlflow.log_dict(gate, 'metrics/promotion_gate.json')
         mlflow.set_tags({'promotion_gate': 'pass' if gate['promote'] else 'fail', 'step': 'train'})
         for horizon, model in models.items():
@@ -215,10 +219,14 @@ def step_register(args, run_id=None):
         name = MODEL_NAME.format(catalog=args.catalog, horizon=horizon)
         version = mlflow.register_model(f'runs:/{run_id}/crowding_h{horizon}', name)
         tags = {'promotion_rule': gate['rule'], 'promotion_gate': 'pass' if gate['promote'] else 'fail',
-                'gate_lightgbm_mae_h30_sim_test': f"{gate['lightgbm_mae']:.5f}",
-                'gate_b1_mae_h30_sim_test': f"{gate['b1_mae']:.5f}",
+                'gate': gate['gate'], 'observed_weekdays': str(gate['observed_weekdays']),
+                **{f'gate_{origin}_{key}_h30': str(value)
+                   for origin, comparison in gate['comparisons'].items()
+                   for key, value in comparison.items()},
                 'training_data_origin': 'simulated', 'mlflow_run_id': run_id,
                 'event_uplift': 'simulated prior; attribution, not causation'}
+        calibration = mlflow.artifacts.load_dict(f'runs:/{run_id}/metrics/observed_calibration.json')
+        tags.update({f'calibration_{k}': str(v) for k, v in calibration[str(horizon)].items()})
         for key, value in tags.items():
             client.set_model_version_tag(name, version.version, key, value)
         if gate['promote']:

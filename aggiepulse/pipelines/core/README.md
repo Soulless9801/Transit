@@ -102,3 +102,20 @@ hours; the source label does not certify a finalized station observation.
 Silver materialized views guarantee replay deduplication but full-history window
 and nearest-stop computations should be profiled as history grows. GTFS feed
 changes replace current Silver schedules; Bronze preserves earlier versions.
+
+
+## APC warnings (2026-11 hardening)
+
+`vehicle_pings` adds `apc_stuck`, `apc_flat_minutes`, `apc_stuck_minutes`, and
+`apc_over_capacity`; existing columns/filters remain. The warning expectations
+`apc_not_stuck` and `apc_within_capacity` do not drop rows. Over-capacity also
+warns on candidates, including rows quarantined by the existing >1.5x rule.
+Flat runs are partitioned by vehicle, reset on onboard/capacity/route changes
+or GPS gaps >120 seconds. At >=60 minutes, >100m GPS span and at least two
+nearest GTFS stops visited within 50m establish movement/stop evidence. This
+is a conservative sensor-drift warning, not proof of sensor failure (empty
+buses can legitimately stay at zero). Undocumented speed units are not used.
+Flags start at the threshold, without retrospectively labelling earlier pings;
+`apc_stuck_minutes` sums bounded inter-ping time once flagged. `silver.apc_quality`
+aggregates per vehicle/Chicago date: deduplicated candidate pings, flagged
+minutes, and all over-capacity candidates (including quarantined >1.5x values).
