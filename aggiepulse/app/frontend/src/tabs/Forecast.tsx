@@ -11,7 +11,8 @@ export default function Forecast() {
   const paused = freshness?.data_expected === false || freshness?.in_service === false;
   const current = rows.filter(p => !p.t0 || (parseUtc(p.t0)?.getTime() ?? 0) + p.horizon_min*60000 >= Date.now());
   const codes = [...new Set(current.map(p => p.route))].sort(compareRoutes);
-  const top = current.filter(p => p.horizon_min === 30).sort((a,b) => b.p_crowd-a.p_crowd || compareRoutes(a.route,b.route)).slice(0,5);
+  const top = [...current.filter(p => p.horizon_min === 30).reduce((best, p) => { const prev = best.get(p.route); if (!prev || p.p_crowd > prev.p_crowd) best.set(p.route, p); return best; }, new Map<string, ForecastRow>()).values()]
+    .sort((a,b) => b.p_crowd-a.p_crowd || compareRoutes(a.route,b.route)).slice(0,5);
   const chip = (code: string) => <RouteChip code={code} route={routes.data?.find(r => r.route_short_name === code)}/>;
   const simulated = current.some(p => p.provenance === 'SIMULATED' || p.source === 'mock');
   const loading = predictions.loading || routes.loading || meta.loading;
@@ -27,7 +28,7 @@ export default function Forecast() {
       </section>
       <section className="section"><h2>Highest chance of crowding in 30 min</h2>
         {!top.length && <EmptyState title="No 30 min forecast yet">Other available times are shown above. Check back after the next forecast update.</EmptyState>}
-        <div className="cards">{top.map((p,i) => <article key={p.route+'-'+p.direction+'-'+i}><h3>{chip(p.route)}</h3>{directionName(p.direction_name) && <p className="meta">Toward {directionName(p.direction_name)}</p>}
+        <div className="cards">{top.map((p,i) => <article key={p.route+'-'+p.direction+'-'+i}><h3>{chip(p.route)}</h3>{directionName(p.direction_name) && <p className="meta">Toward {directionName(p.direction_name)}</p>}{!directionName(p.direction_name) && <p className="meta">Busiest direction</p>}
           <p><span className="big-stat">{p.p_crowd>0 && p.p_crowd<0.01 ? '<1%' : pct(p.p_crowd)}</span> chance of being crowded</p>
           <p>Expected to be {pct(p.pred_p50)} full.<br/>Likely range: {pct(p.pred_p10)}–{pct(p.pred_p90)}.</p>
           <IntervalBar p10={p.pred_p10} p50={p.pred_p50} p90={p.pred_p90}/>
