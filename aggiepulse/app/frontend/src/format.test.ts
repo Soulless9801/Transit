@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes, PAGES, pageFromHash, hashForPage} from './format.ts';
+import {spreadOffsets, LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes, PAGES, pageFromHash, hashForPage} from './format.ts';
 
 test('load scale and contrast', () => {
   for (const step of LOAD_SCALE) assert.ok(contrastRatio(step.bg, step.fg) >= 4.5);
@@ -155,3 +155,25 @@ test('hash routing and page resolution', () => {
   assert.equal(hashForPage('Live map'), '#map');
 });
 
+
+test('nearby buses spread deterministically while distant buses stay put', () => {
+  const check = (group: {id: string; x: number; y: number}[]) => {
+    const offsets = spreadOffsets(group);
+    assert.deepEqual(offsets, spreadOffsets([...group].reverse()));
+    const positions = group.map(p => { const [x, y] = offsets.get(p.id)!; return {x: p.x + x, y: p.y + y}; });
+    for (let i = 0; i < group.length; i++) {
+      assert.notDeepEqual(offsets.get(group[i].id), [0, 0]);
+      for (let j = 0; j < i; j++) assert.ok(Math.hypot(positions[i].x - positions[j].x, positions[i].y - positions[j].y) >= 43);
+    }
+    return offsets;
+  };
+  const pair = [{id: 'a', x: 0, y: 0}, {id: 'b', x: 10, y: 0}];
+  const offsets = check(pair);
+  assert.ok(offsets.get('a')![1] * offsets.get('b')![1] < 0);
+  assert.deepEqual([...spreadOffsets([pair[0], {id: 'b', x: 500, y: 0}]).values()], [[0, 0], [0, 0]]);
+  check([...pair, {id: 'c', x: 3, y: 2}]);
+  check([{id: 'a', x: 0, y: 0}, {id: 'b', x: 40, y: 0}, {id: 'c', x: 80, y: 0}]);
+  check(Array.from({length: 7}, (_, i) => ({id: String(i), x: i, y: i})));
+  // a and b form a ring whose lower slot lands on c (50 px away); the groups merge instead of overlapping.
+  check([{id: 'a', x: 0, y: 0}, {id: 'b', x: 10, y: 0}, {id: 'c', x: 0, y: 50}]);
+});
