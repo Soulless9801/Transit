@@ -56,27 +56,73 @@ export function compareRoutes(a: string, b: string): number {
   return a.localeCompare(b, undefined, {numeric: true});
 }
 export type StopOption = {id: string; code: string; name: string; label: string};
-export function stopOptions(features: {properties: {stop_id: string; stop_code?: string; stop_name: string}}[]): StopOption[] {
-  return features.map(({properties: p}) => ({id: p.stop_id, code: p.stop_code || '', name: p.stop_name, label: `${p.stop_name} (${p.stop_code || p.stop_id})`}))
-    .sort ( (a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
+export function stopOptions(features: {geometry?: {coordinates: number[]}; properties: {stop_id: string; stop_code?: string; stop_name: string; routes?: string[]}}[]): StopOption[] {
+  return features.map(({properties: p, geometry}) => {
+    const duplicates = features.filter(f => f.properties.stop_name === p.stop_name);
+    const routes = [...(p.routes ?? [])].sort(compareRoutes).join(', ');
+    const sameRoutes = duplicates.filter(f => [...(f.properties.routes ?? [])].sort(compareRoutes).join(', ') === routes);
+    // Same-name bays with the same routes are distinguished by their geographic position.
+    const position = sameRoutes.length > 1 && geometry ? (geometry.coordinates[1] === Math.max(...sameRoutes.map(f => f.geometry?.coordinates[1] ?? -Infinity)) ? 'north side' : 'south side') : '';
+    return {id: p.stop_id, code: p.stop_code || '', name: p.stop_name,
+      label: p.stop_name + (duplicates.length > 1 ? ` · ${routes ? 'Routes ' + routes : 'Campus stop'}${position ? ' · ' + position : ''}` : '')};
+  }).sort((a, b) => a.label.localeCompare(b.label, undefined, {numeric: true}));
 }
 export function resolveStop(options: StopOption[], text: string): StopOption | null {
   const query = text.trim().toLowerCase();
   if (!query) return null;
-  const equal = (s: string) => s.trim().toLowerCase() === query;
-  const label = options.find(o => equal(o.label));
-  if (label) return label;
-  const id = options.find(o => equal(o.id) || (o.code && equal(o.code)));
-  if (id) return id;
-  const names = options.filter(o => equal(o.name));
+  const labels = options.filter(o => o.label.toLowerCase() === query);
+  if (labels.length === 1) return labels[0];
+  const names = options.filter(o => o.name.toLowerCase() === query);
   return names.length === 1 ? names[0] : null;
 }
-export type HistoryRow = {route_short_name: string; direction_id: string; window_start: string; p90_load_factor: number | null; avg_load_factor?: number | null; n_pings: number | null};
+export type Route = {route_id?: string; route_short_name: string; route_long_name: string; route_color?: string; route_text_color?: string};
+export function routeColor(color?: string): string {
+  return color && /^#?[0-9a-f]{6}$/i.test(color) ? '#' + color.replace('#', '') : '#500000';
+}
+export function safeTextColor(background: string, preferred?: string): string {
+  const bg = routeColor(background), text = preferred ? routeColor(preferred) : '';
+  if (text && contrastRatio(bg, text) >= 4.5) return text;
+  return contrastRatio(bg, '#000000') >= contrastRatio(bg, '#ffffff') ? '#000000' : '#ffffff';
+}
+export function friendlyDate(value: string | Date, now = new Date(), dateOnly = false): string {
+  const date = value instanceof Date ? value : parseUtc(value);
+  if (!date) return 'Time to be announced';
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', {timeZone: CAMPUS_TZ}).format(d);
+  const label = day(date) === day(now) ? 'Today' : new Intl.DateTimeFormat('en-US', {timeZone: CAMPUS_TZ, weekday: 'short', month: 'short', day: 'numeric'}).format(date).replace(',', '');
+  return dateOnly ? label : `${label} ${formatTime(date)}`;
+}
+export function readableName(value?: string): string {
+  return (value || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+export function directionName(value?: string): string {
+  return !value || /^(?:direction\s*)?\d+$/i.test(value) ? '' : value.replace(/_/g, ' ');
+}
+export function factorPhrase(family: string, feature = '', contribution = 0): string {
+  const key = (family + ' ' + feature).toLowerCase();
+  const phrase = /class/.test(key) ? (contribution < 0 ? 'Fewer classes letting out' : 'Classes letting out')
+    : /event/.test(key) ? (contribution < 0 ? 'Less event activity nearby' : 'Event nearby')
+    : /rain|precip/.test(key) ? 'Rain'
+    : /weather/.test(key) ? 'Weather'
+    : /bunch|headway/.test(key) ? (contribution < 0 ? 'Buses spaced apart' : 'Buses bunching')
+    : /recent|load now|lag/.test(key) ? (contribution < 0 ? 'Buses have been quieter' : 'Buses have been busy')
+    : /time|season|calendar|baseline/.test(key) ? (contribution < 0 ? 'Usually quieter at this time' : 'Usually busy at this time')
+    : /delay|traffic/.test(key) ? 'Traffic delays' : 'Usual travel patterns';
+  return `${contribution < 0 ? '↓' : '↑'} ${phrase}`;
+}
+export function serviceMessage(f?: Freshness, noun = 'Forecasts'): string {
+  if (f?.in_service === false) return `No buses are scheduled right now.${f.next_scheduled_ts ? ` ${noun} resume ${friendlyDate(f.next_scheduled_ts)} CT.` : ' Check back when bus service resumes.'}`;
+  if (f?.data_expected === false) return 'Bus service is starting. Fresh readings and forecasts usually appear within 20 min.';
+  return 'Fresh data is not available yet. Check back after buses have been running for about 20 min.';
+}
+export function cleanText(text: string): string {
+  return text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/\(ID:\s*[^)]+\)/gi, '').replace(/\s+/g, ' ').trim();
+}
+export type HistoryRow = {route_short_name: string; direction_id: string; direction_name?: string; window_start: string; p90_load_factor: number | null; avg_load_factor?: number | null; n_pings: number | null};
 export type Series = {direction: string; label: string; points: {t: Date; p90: number; n: number}[]};
 export function historySeries(rows: HistoryRow[], route: string): Series[] {
   const valid = rows.filter(row => row.route_short_name === route && row.p90_load_factor != null && parseUtc(row.window_start));
   const labels = directionLabels(valid.map(row => row.direction_id));
-  return [...labels].map(([direction, label]) => ({direction, label, points: valid.filter(row => row.direction_id === direction).map(row => ({t: parseUtc(row.window_start)!, p90: row.p90_load_factor!, n: row.n_pings ?? 0})).sort((a, b) => a.t.getTime() - b.t.getTime())}));
+  return [...labels].map(([direction, label]) => ({direction, label: directionName(valid.find(r => r.direction_id === direction)?.direction_name) || 'Route service', points: valid.filter(row => row.direction_id === direction).map(row => ({t: parseUtc(row.window_start)!, p90: row.p90_load_factor!, n: row.n_pings ?? 0})).sort((a, b) => a.t.getTime() - b.t.getTime())}));
 }
 export type HotspotGrid = {slots: Date[]; routes: string[]; cells: Record<string, Record<number, {p90: number; n: number}>>};
 export function hotspotGrid(rows: HistoryRow[], maxSlots = 12): HotspotGrid {
@@ -128,7 +174,7 @@ export function replayFrame<T extends ReplayPosition>(rows: T[], cursor: number)
 }
 export function ageLabel(seconds: number | null | undefined): string {
   if (seconds == null || !Number.isFinite(seconds)) return 'unknown';
-  return seconds < 60 ? `${Math.floor(Math.max(0, seconds))}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : `${(seconds / 3600).toFixed(1)}h`;
+  return seconds < 60 ? `${Math.floor(Math.max(0, seconds))} s` : seconds < 3600 ? `${Math.floor(seconds / 60)} min` : `${Math.floor(seconds / 3600)} hr`;
 }
 export type Freshness = {
   bus_snapshot_age_s: number | null; bus_source: string; last_scoring_ts: string | null;

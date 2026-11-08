@@ -493,6 +493,16 @@ class Datasets:
                 )
             if name == "events":
                 row["affected_routes"] = affected(row)
+                row["venue_name"] = str(row.get("venue_key") or "").replace("_", " ").title()
+            if name == "alerts":
+                stop_names = {
+                    f["properties"]["stop_id"]: f["properties"]["stop_name"]
+                    for f in static("stops.geojson")["features"]
+                }
+                row["closed_stop_names"] = sorted({
+                    stop_names[sid] for sid in row.get("closed_stops", [])
+                    if sid in stop_names
+                })
         result = {
             "data": rows,
             "source": source,
@@ -666,6 +676,12 @@ def plan(origin, destination, predictions, hour=12):
                     results.append(
                         {
                             "route": pattern["route"],
+                            "origin_stop_name": stops[a]["properties"]["stop_name"],
+                            "destination_stop_name": stops[b]["properties"]["stop_name"],
+                            "crowding_scored_at": pred.get("scoring_ts") if pred else None,
+                            "crowding_provenance": pred.get("provenance", "PREDICTED")
+                            if pred
+                            else "SIMULATED",
                             "direction": pattern["direction"],
                             "shift": shift,
                             "wait_min": round(wait, 1),

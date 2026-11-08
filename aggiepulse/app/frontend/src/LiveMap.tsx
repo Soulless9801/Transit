@@ -2,36 +2,39 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import * as maplibregl from 'maplibre-gl';
 import {Map as GLMap, Marker, Popup} from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import {ageLabel, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, points, replayFrame, routeLoad} from './format';
-import type {Prediction} from './format';
-import {Badge, IntervalBar, Status, useApi} from './ui';
+import {ageLabel, compareRoutes, directionName, factorPhrase, routeColor, safeTextColor, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, replayFrame, routeLoad} from './format';
+import type {Freshness, Prediction} from './format';
+import {AboutThisData, Badge, IntervalBar, RouteChip, ServiceNotice, Status, useApi} from './ui';
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-type Route = {route_id: string; route_short_name: string; route_long_name: string; route_color: string};
+type Route = {route_id: string; route_short_name: string; route_long_name: string; route_color: string; route_text_color?: string};
 type Vehicle = {vehicle_id: string; route?: string; route_id?: string; lat: number; lon: number; onboard: number | null; capacity: number | null; load_factor: number | null; gps_age_s?: number | null; source?: string; ts_gps: string | null};
 type Replay = {data: Vehicle[]; source: string; start_ts: string | null; end_ts: string | null; capped: boolean};
 async function get<T,>(url: string, signal?: AbortSignal): Promise<T> {
   const r = await fetch(url, {signal}); if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.json();
 }
-function RouteForecast({route, predictions}: {route: string; predictions: Prediction[]}) {
+function RouteForecast({route, routes, predictions}: {route: string; routes: Route[]; predictions: Prediction[]}) {
   const rows = predictions.filter(p => p.route === route);
   return <section className="route-forecast" aria-label={`Route ${route} forecast`}>
-    <h2>Route {route} <Badge kind="PREDICTED"/></h2>
+    <h2><RouteChip code={route} route={routes.find(r => r.route_short_name === route)}/></h2><Badge kind={rows.some(p => p.provenance === 'SIMULATED') ? 'SIMULATED' : 'PREDICTED'}/>
     {!rows.length && <p>No predictions for this route.</p>}
-    {rows.some(p => p.provenance === 'SIMULATED') && <Badge kind="SIMULATED"/>}
     {rows.map(p => <div key={`${p.direction}-${p.horizon_min}`}>
-      <h3>+{p.horizon_min} min · {p.direction_name || `Direction ${p.direction}`}</h3>
-      <p>{pct(p.pred_p50)} load · p10–p90 {pct(p.pred_p10)}–{pct(p.pred_p90)}</p>
+      <h3>In {p.horizon_min} min{directionName(p.direction_name) && ` · Toward ${directionName(p.direction_name)}`}</h3>
+      <p>{pct(p.pred_p50)} full · Likely range {pct(p.pred_p10)}–{pct(p.pred_p90)}</p>
       <IntervalBar p10={p.pred_p10} p50={p.pred_p50} p90={p.pred_p90}/>
-      <ul>{(p.top_factors ?? []).slice(0, 3).map((f, i) => <li key={i}>{f.family}: {f.feature} ({points(Number(f.contribution))})</li>)}</ul>
-      {p.training_data_origin && <p>Trained on {p.training_data_origin} data.</p>}
+      <ul>{(p.top_factors ?? []).slice(0, 3).map((f, i) => <li key={i}>{factorPhrase(f.family, f.feature, Number(f.contribution))}</li>)}</ul>
     </div>)}
   </section>;
 }
 export default function LiveMap() {
   const container = useRef<HTMLDivElement>(null), map = useRef<GLMap | null>(null), markers = useRef<Marker[]>([]);
+  const meta = useApi<{freshness: Freshness}>('/api/meta', 15000);
+  const [search, setSearch] = useState('');
+  const [routeBrowserOpen, setRouteBrowserOpen] = useState(() => window.innerWidth > 800);
+  const [busLoading, setBusLoading] = useState(true);
   const [routes, setRoutes] = useState<Route[]>([]), [selected, setSelected] = useState<string[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]), [predictions, setPredictions] = useState<Prediction[]>([]);
+  const currentPredictions = predictions.filter(p => !(p as Prediction & {t0?: string}).t0 || (parseUtc((p as Prediction & {t0?: string}).t0)?.getTime() ?? 0) + p.horizon_min * 60000 >= Date.now());
   const [error, setError] = useState(''), [forecastError, setForecastError] = useState(''), [mapError, setMapError] = useState('');
   const [ready, setReady] = useState(false), [routeDetail, setRouteDetail] = useState('');
   const [mode, setMode] = useState<'live' | 'replay'>('live'), [hours, setHours] = useState(24);
@@ -49,7 +52,7 @@ export default function LiveMap() {
   const visibleVehicles = useMemo(() => mode === 'replay' ? replayFrame(replay.data?.data ?? [], replayTime) : vehicles, [mode, replay.data, replayTime, vehicles]);
   useEffect(() => {
     const controller = new AbortController();
-    get<Route[]>('/api/routes', controller.signal).then(r => { setRoutes(r); setSelected(r.map(x => x.route_id)); }).catch(e => { if (!controller.signal.aborted) setError(String(e)); });
+    get<Route[]>('/api/routes', controller.signal).then(r => { setRoutes([...r].sort((a,b) => compareRoutes(a.route_short_name,b.route_short_name))); setSelected(r.map(x => x.route_id)); }).catch(e => { if (!controller.signal.aborted) setError('Bus information is temporarily unavailable.'); });
     return () => controller.abort();
   }, []);
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function LiveMap() {
         m.on('click', 'routes', e => { const route = e.features?.[0]?.properties.route_short_name; if (route) setRouteDetail(route); });
         m.on('click', 'stops', e => {
           const p = e.features?.[0]?.properties; if (!p) return;
-          new Popup().setLngLat(e.lngLat).setText(`${p.stop_name} · Stop ${p.stop_code || p.stop_id} · Routes ${p.routes} · GTFS schedule`).addTo(m);
+          new Popup().setLngLat(e.lngLat).setText(p.stop_name).addTo(m);
         });
         for (const layer of ['routes', 'stops']) {
           m.on('mouseenter', layer, () => { m.getCanvas().style.cursor = 'pointer'; });
@@ -81,7 +84,7 @@ export default function LiveMap() {
           if (e.lat && e.lon) {
             const el = document.createElement('button'); el.className = 'venue-pulse'; el.setAttribute('aria-label', e.title);
             el.style.width = el.style.height = Math.min(35, 12 + Number(e.significance || 0)) + 'px';
-            new Marker({element: el}).setLngLat([e.lon, e.lat]).setPopup(new Popup().setText(e.title + ' · simulated prior')).addTo(m);
+            new Marker({element: el}).setLngLat([e.lon, e.lat]).setPopup(new Popup().setText(e.title + ' · Extra riders expected (simulated estimate)')).addTo(m);
           }
         }
         if (alerts.status === 'fulfilled') {
@@ -89,7 +92,7 @@ export default function LiveMap() {
           m.addSource('alerts', {type: 'geojson', data: {...shapes, features: shapes.features.filter((f: any) => affected.includes(f.properties.route_short_name))}});
           m.addLayer({id: 'alert-lines', type: 'line', source: 'alerts', paint: {'line-color': '#ed9b20', 'line-width': 10, 'line-dasharray': [2, 2], 'line-opacity': 0.6}}, 'routes');
         }
-      } catch (e) { if (map.current === m) setMapError(String(e)); }
+      } catch (e) { if (map.current === m) setMapError('The map could not load. Please refresh or use the route list.'); }
     });
     return () => { markers.current.forEach(x => x.remove()); m.remove(); map.current = null; };
   }, []);
@@ -99,8 +102,9 @@ export default function LiveMap() {
       const results = await Promise.allSettled([get<Vehicle[]>('/api/vehicles/latest', controller.signal), get<Prediction[]>('/api/predictions', controller.signal)]);
       if (controller.signal.aborted) return;
       const [v, p] = results;
-      if (v.status === 'fulfilled') { setVehicles(v.value); setError(''); } else setError(String(v.reason));
-      if (p.status === 'fulfilled') { setPredictions(p.value); setForecastError(''); } else { setPredictions([]); setForecastError(String(p.reason)); }
+      if (v.status === 'fulfilled') { setVehicles(v.value); setError(''); } else setError('Bus updates are temporarily unavailable.');
+      setBusLoading(false);
+      if (p.status === 'fulfilled') { setPredictions(p.value); setForecastError(''); } else { setPredictions([]); setForecastError('Route forecasts are temporarily unavailable.'); }
     }
     void poll(); const timer = setInterval(poll, 15000);
     return () => { controller.abort(); clearInterval(timer); };
@@ -110,45 +114,66 @@ export default function LiveMap() {
     m.setFilter('routes', ['in', ['get', 'route_id'], ['literal', selected]]);
     if (m.getLayer('alert-lines')) m.setFilter('alert-lines', ['in', ['get', 'route_id'], ['literal', selected]]);
     m.setFilter('stops', (selected.length ? ['any', ...selected.map(id => ['in', id, ['get', 'routes']])] : ['literal', false]) as maplibregl.ExpressionSpecification);
-    m.setPaintProperty('routes', 'line-color', ['match', ['get', 'route_short_name'], routes[0].route_short_name, crowdColor(mode === 'replay' ? null : routeLoad(predictions, routes[0].route_short_name)), ...routes.slice(1).flatMap(r => [r.route_short_name, crowdColor(mode === 'replay' ? null : routeLoad(predictions, r.route_short_name))]), '#7b8490'] as maplibregl.ExpressionSpecification);
+    m.setPaintProperty('routes', 'line-color', ['match', ['get', 'route_short_name'], routes[0].route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, routes[0].route_short_name)), ...routes.slice(1).flatMap(r => [r.route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, r.route_short_name))]), '#7b8490'] as maplibregl.ExpressionSpecification);
+    const openVehicle = markers.current.find(marker => marker.getPopup()?.isOpen())?.getElement().dataset.vehicleId;
     markers.current.forEach(x => x.remove()); markers.current = [];
     visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); }).forEach(v => {
-      const el = document.createElement('button'); el.className = 'bus'; el.style.borderColor = crowdColor(v.load_factor);
+      const el = document.createElement('button'); el.dataset.vehicleId = v.vehicle_id; el.className = 'bus'; el.style.borderColor = crowdColor(v.load_factor);
       el.textContent = v.route || '▣'; el.style.background = '#500000'; el.style.color = 'white';
-      el.setAttribute('aria-label', `${mode === 'replay' ? 'Replay' : 'Measured'} bus ${v.vehicle_id}, route ${v.route}, load ${pct(v.load_factor)}`);
+      const route = routes.find(r => r.route_short_name === v.route || r.route_id === v.route_id);
+      el.setAttribute('aria-label', `${mode === 'replay' ? 'Recorded' : 'Measured'} bus on ${route?.route_short_name || 'an unknown route'} ${route?.route_long_name || ''}, ${pct(v.load_factor)} full`);
       const body = document.createElement('div');
-      const title = document.createElement('strong'); title.textContent = `${mode === 'replay' ? 'REPLAY · ' : ''}Bus ${v.vehicle_id} · Route ${v.route || 'unknown'}`; body.append(title);
-      for (const text of [`${v.onboard ?? '—'} / ${v.capacity ?? '—'} onboard · ${pct(v.load_factor)} · MEASURED · APC`, `GPS: ${parseUtc(v.ts_gps) ? formatDateTime(parseUtc(v.ts_gps)!) + ' Central' : 'unknown'}`, mode === 'replay' ? `Recorded source: ${replay.data?.source}` : `GPS age: ${ageLabel(v.gps_age_s)} · Source: ${v.source || 'unknown'}`]) {
+      const chip = document.createElement('span'); chip.className = 'route-chip';
+      const code = document.createElement('b'); code.textContent = route?.route_short_name || v.route || 'Bus';
+      code.style.background = routeColor(route?.route_color); code.style.color = safeTextColor(routeColor(route?.route_color), route?.route_text_color);
+      const name = document.createElement('span'); name.textContent = route?.route_long_name || 'Route name unavailable';
+      chip.append(code,name); body.append(chip);
+      const recorded = mode === 'replay';
+      const stamp = parseUtc(v.ts_gps);
+      const elapsed = recorded && stamp ? (replayTime-stamp.getTime())/1000 : v.gps_age_s;
+      const occupancy = v.onboard != null && v.capacity != null ? `${Math.round(v.onboard)} of ${Math.round(v.capacity)} places taken · ${pct(v.load_factor)} full` : v.load_factor != null ? `${pct(v.load_factor)} full · Passenger count unavailable` : 'Passenger count unavailable';
+      for (const text of [occupancy, `${recorded ? 'Recorded' : 'Updated'} ${ageLabel(elapsed)} ago${recorded && stamp ? ' · ' + formatDateTime(stamp) + ' CT' : ''}`]) {
         const p = document.createElement('p'); p.textContent = text; body.append(p);
       }
-      markers.current.push(new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m));
+      const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Measured'; badge.title = 'Passenger counts reported by bus counters; counter accuracy has not been independently verified.'; body.append(badge);
+      const marker = new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m);
+      if (openVehicle === v.vehicle_id) marker.togglePopup();
+      markers.current.push(marker);
     });
-  }, [ready, selected, visibleVehicles, routes, predictions, mode, replay.data]);
+  }, [ready, selected, visibleVehicles, routes, predictions, mode, replay.data, replayTime, meta.data]);
   return <main className="live" aria-labelledby="page-title"><aside>
     <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
-    <p className="intro">Route lines predict +30 min load; bus rings show measured load.</p>
-    <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay collected data</option></select></label>
+    <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
+    <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay past bus trips</option></select></label>
     {mode === 'replay' && <section className="replay-controls" aria-label="Replay controls">
-      <Badge kind="REPLAY"/><p>Recorded observed positions. Route forecasts are hidden during replay.</p>
-      <label className="field">Collected window<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours collected</option>)}</select></label>
+      <Badge kind="MEASURED"/><p>Watch recorded bus positions. The map shows what was reported at the selected time.</p>
+      <label className="field">How far back?<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours</option>)}</select></label>
       <Status loading={replay.loading} error={replay.error} empty={!replay.loading && !replay.error && !replay.data?.data.length} emptyText="No observed positions available in this archive."/>
       {start > 0 && <><label className="field">Replay time (Central)<input aria-label="Replay time" type="range" min={start} max={end} step={1000} value={replayTime} onChange={e => {setCursor(Number(e.target.value)); setPlaying(false);}}/></label>
         <output>{formatDateTime(new Date(replayTime))} CT</output>
-        <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT · {replay.data?.source}{replay.data?.capped ? ' · 10,000-row cap reached' : ''}</p>
+        <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT{replay.data?.capped ? ' · Showing the most recent available positions' : ''}</p>
         <button className="btn" aria-pressed={playing} disabled={start === end} onClick={() => {if (replayTime >= end) setCursor(start); setPlaying(p => !p);}}>{playing ? 'Pause' : 'Play'}</button>
-        <label className="field">Speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}×</option>)}</select></label>
-        <p>Positions expire after 2 minutes without a ping; gaps remain empty.</p></>}
+        <label className="field">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}× · {s === 1 ? 'Real time' : `${s} seconds per second`}</option>)}</select></label>
+        <p>Buses disappear if no position was recorded for 2 min. Try moving the time slider if the map is empty.</p></>}
     </section>}
     {mode === 'live' && <Status error={error || forecastError}/>}
-    {routeDetail && mode === 'live' && <><button onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} predictions={predictions}/></>}
-    <h2>Routes <span className="gtfs">GTFS schedule</span></h2><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
-    <div className="route-list">{routes.map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><span className="swatch" style={{background: crowdColor(mode === 'replay' ? null : routeLoad(predictions, r.route_short_name))}}/><strong>{r.route_short_name}</strong><span>{r.route_long_name}</span></label>{mode === 'live' && <button aria-label={`Forecast for route ${r.route_short_name}`} onClick={() => setRouteDetail(r.route_short_name)}>Forecast</button>}</div>)}</div>
+    {routeDetail && mode === 'live' && meta.data?.freshness.data_expected !== false && <><button onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} routes={routes} predictions={currentPredictions}/></>}
+    <details className="route-browser" open={routeBrowserOpen} onToggle={e => setRouteBrowserOpen(e.currentTarget.open)}><summary>Choose routes · {routes.length} routes</summary><h2>Find a route</h2><label className="field">Search routes<input type="search" placeholder="Route number or name" value={search} onChange={e => setSearch(e.target.value)}/></label><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
+    <div className="route-list">{routes.filter(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())).map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><RouteChip route={r}/></label>{mode === 'live' && meta.data?.freshness.data_expected !== false && <button aria-label={`Forecast for route ${r.route_short_name} ${r.route_long_name}`} onClick={() => setRouteDetail(r.route_short_name)}>See forecast</button>}</div>)}</div>
+    {search && !routes.some(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())) && <p>No routes match. Try a name such as Bonfire.</p>}
+    </details>
+    <AboutThisData sources={{'Bus source': vehicles[0]?.source, 'Replay source': replay.data?.source, 'Replay positions': replay.data?.data.length, 'Model versions': [...new Set(predictions.map(p => (p as Prediction & {model_version?: string}).model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(predictions.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable'}}><p>Measured fullness comes from bus passenger counters. Capacity includes all available passenger places, which can include standing room. Route lines show the busiest direction’s forecast for 30 min ahead; grey means no current forecast. Forecast training may include simulated history. Replay uses recorded GPS positions, up to 10,000 positions, and hides current forecasts. Event markers indicate assumed extra demand. Dashed amber route highlights indicate an alert, not the detour path.</p></AboutThisData>
     <footer>Schedule © TAMU Transportation Services. APC readings reported by TripSpark.</footer>
   </aside><section className="map-wrap" aria-label={mode === 'replay' ? 'Replay campus bus map' : 'Live campus bus map'}><div ref={container} className="map"/>
-    {mapError && <div className="error" role="status">{mapError}</div>}
-    <div className="legend">{mode === 'replay' ? <><Badge kind="REPLAY"/> Grey routes: GTFS geometry</> : <><Badge kind="PREDICTED"/> Lines: +30 min load, busiest direction{predictions.some(p => p.provenance === 'SIMULATED') && <Badge kind="SIMULATED"/>}</>}<br/><Badge kind="MEASURED · APC"/> Circular bus rings: onboard load
-      <div>{MAP_LOAD_SCALE.map(s => <span key={s.color}><b style={{color: s.color}}>●</b> {s.label}</span>)}</div>
+
+    <div className="map-info">
+      {mapError && <p role="status">{mapError}</p>}
+      {mode === 'live' && visibleVehicles.some(v => (v.gps_age_s ?? 0)>600) && <p role="status">Showing older recorded bus positions. Live updates are unavailable; recording times appear when you select a bus.</p>}
+      {mode === 'live' && busLoading && <Status loading/>}
+      {!visibleVehicles.length && !busLoading && (mode === 'replay' ? <p role="status">No buses at this replay time. Move the time slider to another recorded period.</p> : <ServiceNotice freshness={meta.data?.freshness} noun="Buses"/>)}
+      <div className="legend">{mode === 'replay' ? <p>Grey lines: scheduled routes · Buses: recorded fullness</p> : <p><Badge kind={currentPredictions.some(p => p.provenance === 'SIMULATED') ? 'SIMULATED' : 'PREDICTED'}/> Route lines: {meta.data?.freshness.data_expected === false ? 'no current forecast' : 'expected fullness in 30 min'}<br/><Badge kind="MEASURED"/> Bus rings: reported fullness</p>}
+        <div>{MAP_LOAD_SCALE.map(s => <span key={s.color}><b style={{color: s.color}}>●</b> {s.label}</span>)}</div><p className="meta">Amber dashed routes: service alert · Gold circles: events</p>
+      </div>
     </div>
-    {!visibleVehicles.length && <div className="empty">{mode === 'replay' ? 'No buses at this replay time. Move the slider to a collected window.' : 'No buses in the latest snapshot. See header for data freshness.'}</div>}
   </section></main>;
 }

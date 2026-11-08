@@ -190,6 +190,11 @@ def test_planner_scoring():
     rows = plan(pattern["stops"][0], pattern["stops"][-1], mock_predictions())
     assert rows
     assert rows == sorted(rows, key=lambda r: r["score"])
+    names = {f["properties"]["stop_name"] for f in static("stops.geojson")["features"]}
+    assert all(r["origin_stop_name"] in names and r["destination_stop_name"] in names for r in rows)
+    assert all(r["crowding_provenance"] == "SIMULATED" for r in rows)
+    fallback = plan(pattern["stops"][0], pattern["stops"][-1], [])
+    assert all(r["crowding_provenance"] == "SIMULATED" and r["crowding_scored_at"] is None for r in fallback)
     assert all(
         abs(
             r["score"]
@@ -458,3 +463,18 @@ def test_comparison_query_excludes_simulated_actuals_and_unfinished_windows():
     assert "actual_n_pings > 0" in query
     assert "target_window_start + INTERVAL 15 MINUTES" in query
     assert "ORDER BY scoring_ts DESC" in query
+
+
+def test_alert_stop_names_and_event_venue_are_readable(monkeypatch):
+    from app.backend.data import DatabricksBackend
+    from app.backend.datasets import Datasets, static
+
+    stop = static("stops.geojson")["features"][0]["properties"]
+    monkeypatch.setenv("AGGIEPULSE_BACKEND", "databricks")
+    monkeypatch.setattr(DatabricksBackend, "query", lambda self, name: [
+        {"closed_stops": [stop["stop_id"], "unknown"], "venue_key": "rudder_theatre"}
+    ])
+    datasets = Datasets()
+    assert datasets.get("alerts")["data"][0]["closed_stop_names"] == [stop["stop_name"]]
+    monkeypatch.setattr("app.backend.datasets.affected", lambda event: [])
+    assert datasets.get("events")["data"][0]["venue_name"] == "Rudder Theatre"
