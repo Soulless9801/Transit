@@ -17,7 +17,8 @@ Workspace: `https://dbc-595c228e-76f6.cloud.databricks.com` (profile `transit`).
 1. **Health:** the header chip in the app is green; `cat aggiepulse/data/collector_heartbeat.json` shows recent successes; `SELECT * FROM transit.gold.ops_health ORDER BY checked_ts DESC LIMIT 1`.
 2. **Freeze:** `cd aggiepulse && DATABRICKS_CONFIG_PROFILE=transit uv run --with databricks-sdk python scripts/ops/freeze.py --label demo`. Note the snapshot id.
 3. **Rehearse Genie** with the exact question below, so you know the answer.
-4. **Fallback:** if live data looks thin (nights, weekends) or TripSpark is down, use **Replay** on the live map instead of live buses. Keep a screen recording of a good run as the last resort.
+4. **Network:** TAMU's campus network (Cisco Umbrella) has blocked the app's hostname as malware. A Firefox certificate warning or a `malware.opendns.com` page means that block. Don't click through it; present from a phone hotspot.
+5. **Fallback:** if live data looks thin (nights, weekends) or TripSpark is down, use **Replay** on the live map instead of live buses. Keep a screen recording of a good run as the last resort.
 
 ## Script
 
