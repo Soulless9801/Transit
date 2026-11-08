@@ -26,8 +26,23 @@ function RouteForecast({route, routes, predictions}: {route: string; routes: Rou
     </div>)}
   </section>;
 }
+function fillBusPopup(body: HTMLDivElement, v: Vehicle, route: Route | undefined, recorded: boolean, replayTime: number): void {
+  body.replaceChildren();
+  const chip = document.createElement('span'); chip.className = 'route-chip';
+  const code = document.createElement('b'); code.textContent = route?.route_short_name || v.route || 'Bus';
+  code.style.background = routeColor(route?.route_color); code.style.color = safeTextColor(routeColor(route?.route_color), route?.route_text_color);
+  const name = document.createElement('span'); name.textContent = route?.route_long_name || 'Route name unavailable';
+  chip.append(code,name); body.append(chip);
+  const stamp = parseUtc(v.ts_gps);
+  const elapsed = recorded && stamp ? (replayTime-stamp.getTime())/1000 : v.gps_age_s;
+  const occupancy = v.onboard != null && v.capacity != null ? `${Math.round(v.onboard)} of ${Math.round(v.capacity)} places taken · ${pct(v.load_factor)} full` : v.load_factor != null ? `${pct(v.load_factor)} full · Passenger count unavailable` : 'Passenger count unavailable';
+  for (const text of [occupancy, `${recorded ? 'Recorded' : 'Updated'} ${ageLabel(elapsed)} ago${recorded && stamp ? ' · ' + formatDateTime(stamp) + ' CT' : ''}`]) {
+    const p = document.createElement('p'); p.textContent = text; body.append(p);
+  }
+  const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Measured'; badge.title = 'Passenger counts reported by bus counters; counter accuracy has not been independently verified.'; body.append(badge);
+}
 export default function LiveMap() {
-  const container = useRef<HTMLDivElement>(null), map = useRef<GLMap | null>(null), markers = useRef<Marker[]>([]);
+  const container = useRef<HTMLDivElement>(null), map = useRef<GLMap | null>(null), markers = useRef(new Map<string, {marker: Marker; el: HTMLButtonElement; body: HTMLDivElement}>());
   const meta = useApi<{freshness: Freshness}>('/api/meta', 15000);
   const [search, setSearch] = useState('');
   const [routeBrowserOpen, setRouteBrowserOpen] = useState(() => window.innerWidth > 800);
@@ -94,7 +109,7 @@ export default function LiveMap() {
         }
       } catch (e) { if (map.current === m) setMapError('The map could not load. Please refresh or use the route list.'); }
     });
-    return () => { markers.current.forEach(x => x.remove()); m.remove(); map.current = null; };
+    return () => { markers.current.forEach(x => x.marker.remove()); markers.current.clear(); m.remove(); map.current = null; };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -115,32 +130,29 @@ export default function LiveMap() {
     if (m.getLayer('alert-lines')) m.setFilter('alert-lines', ['in', ['get', 'route_id'], ['literal', selected]]);
     m.setFilter('stops', (selected.length ? ['any', ...selected.map(id => ['in', id, ['get', 'routes']])] : ['literal', false]) as maplibregl.ExpressionSpecification);
     m.setPaintProperty('routes', 'line-color', ['match', ['get', 'route_short_name'], routes[0].route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, routes[0].route_short_name)), ...routes.slice(1).flatMap(r => [r.route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, r.route_short_name))]), '#7b8490'] as maplibregl.ExpressionSpecification);
-    const openVehicle = markers.current.find(marker => marker.getPopup()?.isOpen())?.getElement().dataset.vehicleId;
-    markers.current.forEach(x => x.remove()); markers.current = [];
-    visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); }).forEach(v => {
-      const el = document.createElement('button'); el.dataset.vehicleId = v.vehicle_id; el.className = 'bus'; el.style.borderColor = crowdColor(v.load_factor);
-      el.textContent = v.route || '▣'; el.style.background = '#500000'; el.style.color = 'white';
+  }, [ready, selected, routes, predictions, mode, meta.data]);
+  useEffect(() => {
+    const m = map.current; if (!ready || !m || !routes.length) return;
+    const visible = visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); });
+    const ids = new Set(visible.map(v => v.vehicle_id));
+    visible.forEach(v => {
+      let entry = markers.current.get(v.vehicle_id);
+      if (!entry) {
+        const el = document.createElement('button'); el.dataset.vehicleId = v.vehicle_id; el.className = 'bus';
+        el.style.background = '#500000'; el.style.color = 'white';
+        const body = document.createElement('div');
+        const marker = new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m);
+        entry = {marker, el, body}; markers.current.set(v.vehicle_id, entry);
+      }
+      const {marker, el, body} = entry;
+      marker.setLngLat([v.lon, v.lat]);
+      el.style.borderColor = crowdColor(v.load_factor); el.textContent = v.route || '▣';
       const route = routes.find(r => r.route_short_name === v.route || r.route_id === v.route_id);
       el.setAttribute('aria-label', `${mode === 'replay' ? 'Recorded' : 'Measured'} bus on ${route?.route_short_name || 'an unknown route'} ${route?.route_long_name || ''}, ${pct(v.load_factor)} full`);
-      const body = document.createElement('div');
-      const chip = document.createElement('span'); chip.className = 'route-chip';
-      const code = document.createElement('b'); code.textContent = route?.route_short_name || v.route || 'Bus';
-      code.style.background = routeColor(route?.route_color); code.style.color = safeTextColor(routeColor(route?.route_color), route?.route_text_color);
-      const name = document.createElement('span'); name.textContent = route?.route_long_name || 'Route name unavailable';
-      chip.append(code,name); body.append(chip);
-      const recorded = mode === 'replay';
-      const stamp = parseUtc(v.ts_gps);
-      const elapsed = recorded && stamp ? (replayTime-stamp.getTime())/1000 : v.gps_age_s;
-      const occupancy = v.onboard != null && v.capacity != null ? `${Math.round(v.onboard)} of ${Math.round(v.capacity)} places taken · ${pct(v.load_factor)} full` : v.load_factor != null ? `${pct(v.load_factor)} full · Passenger count unavailable` : 'Passenger count unavailable';
-      for (const text of [occupancy, `${recorded ? 'Recorded' : 'Updated'} ${ageLabel(elapsed)} ago${recorded && stamp ? ' · ' + formatDateTime(stamp) + ' CT' : ''}`]) {
-        const p = document.createElement('p'); p.textContent = text; body.append(p);
-      }
-      const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Measured'; badge.title = 'Passenger counts reported by bus counters; counter accuracy has not been independently verified.'; body.append(badge);
-      const marker = new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m);
-      if (openVehicle === v.vehicle_id) marker.togglePopup();
-      markers.current.push(marker);
+      fillBusPopup(body, v, route, mode === 'replay', replayTime);
     });
-  }, [ready, selected, visibleVehicles, routes, predictions, mode, replay.data, replayTime, meta.data]);
+    markers.current.forEach((entry, id) => { if (!ids.has(id)) { entry.marker.remove(); markers.current.delete(id); } });
+  }, [ready, selected, visibleVehicles, routes, mode, replayTime]);
   return <main className="live" aria-labelledby="page-title"><aside>
     <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
     <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
