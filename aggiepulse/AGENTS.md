@@ -6,6 +6,9 @@ Texas A&M bus crowding forecasts on Databricks. The full plan is `../PLAN.MD`; r
 - Python package `aggiepulse` (uv, src layout, Python ≥3.12): `src/aggiepulse/{common,collector,ingest,...}`.
 - `seeds/`: hand-curated CSVs and `event_filters.yaml` (see `seeds/README.md`).
 - `app/`: FastAPI backend and React/MapLibre frontend (see `app/README.md`).
+  - Frontend structure: one component per page in `app/frontend/src/tabs/`, shared UI in `src/ui.tsx` (Badge, SourceLine, Status, LoadCell, …), formatting in `src/format.ts` (tested with `npm test`). Live map in `src/LiveMap.tsx`. Reuse these; don't reintroduce one-file pages.
+  - Backend SQL: `DatabricksBackend.QUERIES` holds complete constant statements. Never build SQL from strings or f-strings. If a query needs input, use `parameters=[StatementParameterListItem(...)]`.
+  - Deploy the app: `npm run build --prefix app/frontend`, `databricks bundle deploy -p transit`, then `databricks apps deploy aggiepulse -p transit --source-code-path /Workspace/Users/jasonli2026@gmail.com/.bundle/aggiepulse/transit/files/app`.
 - `pipelines/`: Lakeflow Declarative Pipeline source (PySpark).
 - `resources/*.yml`: Asset Bundle resources, **one file per workstream**. `databricks.yml` is shared; don't edit it unless your task says so.
 - Tests: `tests/<area>/`. Run `uv run pytest tests/<area> -q` and `uv run ruff check <your paths>`.
