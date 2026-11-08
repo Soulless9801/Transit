@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import * as maplibregl from 'maplibre-gl';
 import {Map as GLMap, Marker, Popup} from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import {ageLabel, compareRoutes, directionName, factorPhrase, routeColor, safeTextColor, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, replayFrame, routeLoad} from './format';
+import {spreadOffsets, ageLabel, compareRoutes, directionName, factorPhrase, routeColor, safeTextColor, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, replayFrame, routeLoad} from './format';
 import type {Freshness, Prediction} from './format';
 import {AboutThisData, Badge, IntervalBar, RouteChip, ServiceNotice, Status, useApi} from './ui';
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
@@ -26,8 +26,23 @@ function RouteForecast({route, routes, predictions}: {route: string; routes: Rou
     </div>)}
   </section>;
 }
+function fillBusPopup(body: HTMLDivElement, v: Vehicle, route: Route | undefined, recorded: boolean, replayTime: number): void {
+  body.replaceChildren();
+  const chip = document.createElement('span'); chip.className = 'route-chip';
+  const code = document.createElement('b'); code.textContent = route?.route_short_name || v.route || 'Bus';
+  code.style.background = routeColor(route?.route_color); code.style.color = safeTextColor(routeColor(route?.route_color), route?.route_text_color);
+  const name = document.createElement('span'); name.textContent = route?.route_long_name || 'Route name unavailable';
+  chip.append(code,name); body.append(chip);
+  const stamp = parseUtc(v.ts_gps);
+  const elapsed = recorded && stamp ? (replayTime-stamp.getTime())/1000 : v.gps_age_s;
+  const occupancy = v.onboard != null && v.capacity != null ? `${Math.round(v.onboard)} of ${Math.round(v.capacity)} places taken · ${pct(v.load_factor)} full` : v.load_factor != null ? `${pct(v.load_factor)} full · Passenger count unavailable` : 'Passenger count unavailable';
+  for (const text of [occupancy, `${recorded ? 'Recorded' : 'Updated'} ${ageLabel(elapsed)} ago${recorded && stamp ? ' · ' + formatDateTime(stamp) + ' CT' : ''}`]) {
+    const p = document.createElement('p'); p.textContent = text; body.append(p);
+  }
+  const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Measured'; badge.title = 'Passenger counts reported by bus counters; counter accuracy has not been independently verified.'; body.append(badge);
+}
 export default function LiveMap() {
-  const container = useRef<HTMLDivElement>(null), map = useRef<GLMap | null>(null), markers = useRef<Marker[]>([]);
+  const container = useRef<HTMLDivElement>(null), map = useRef<GLMap | null>(null), markers = useRef(new Map<string, {marker: Marker; el: HTMLButtonElement; body: HTMLDivElement}>());
   const meta = useApi<{freshness: Freshness}>('/api/meta', 15000);
   const [search, setSearch] = useState('');
   const [routeBrowserOpen, setRouteBrowserOpen] = useState(() => window.innerWidth > 800);
@@ -94,7 +109,7 @@ export default function LiveMap() {
         }
       } catch (e) { if (map.current === m) setMapError('The map could not load. Please refresh or use the route list.'); }
     });
-    return () => { markers.current.forEach(x => x.remove()); m.remove(); map.current = null; };
+    return () => { markers.current.forEach(x => x.marker.remove()); markers.current.clear(); m.remove(); map.current = null; };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -115,56 +130,65 @@ export default function LiveMap() {
     if (m.getLayer('alert-lines')) m.setFilter('alert-lines', ['in', ['get', 'route_id'], ['literal', selected]]);
     m.setFilter('stops', (selected.length ? ['any', ...selected.map(id => ['in', id, ['get', 'routes']])] : ['literal', false]) as maplibregl.ExpressionSpecification);
     m.setPaintProperty('routes', 'line-color', ['match', ['get', 'route_short_name'], routes[0].route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, routes[0].route_short_name)), ...routes.slice(1).flatMap(r => [r.route_short_name, crowdColor(mode === 'replay' || meta.data?.freshness.data_expected === false ? null : routeLoad(currentPredictions, r.route_short_name))]), '#7b8490'] as maplibregl.ExpressionSpecification);
-    const openVehicle = markers.current.find(marker => marker.getPopup()?.isOpen())?.getElement().dataset.vehicleId;
-    markers.current.forEach(x => x.remove()); markers.current = [];
-    visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); }).forEach(v => {
-      const el = document.createElement('button'); el.dataset.vehicleId = v.vehicle_id; el.className = 'bus'; el.style.borderColor = crowdColor(v.load_factor);
-      el.textContent = v.route || '▣'; el.style.background = '#500000'; el.style.color = 'white';
+  }, [ready, selected, routes, predictions, mode, meta.data]);
+  useEffect(() => {
+    const m = map.current; if (!ready || !m || !routes.length) return;
+    const visible = visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); });
+    const visibleRef = {current: visible};
+    const applyOffsets = () => {
+      const offsets = spreadOffsets(visibleRef.current.map(v => { const p = m.project([v.lon, v.lat]); return {id: v.vehicle_id, x: p.x, y: p.y}; }));
+      visibleRef.current.forEach(v => markers.current.get(v.vehicle_id)?.marker.setOffset(offsets.get(v.vehicle_id) ?? [0, 0]));
+    };
+    const ids = new Set(visible.map(v => v.vehicle_id));
+    visible.forEach(v => {
+      let entry = markers.current.get(v.vehicle_id);
+      if (!entry) {
+        const el = document.createElement('button'); el.dataset.vehicleId = v.vehicle_id; el.className = 'bus';
+        el.style.background = '#500000'; el.style.color = 'white';
+        const body = document.createElement('div');
+        const marker = new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m);
+        entry = {marker, el, body}; markers.current.set(v.vehicle_id, entry);
+      }
+      const {marker, el, body} = entry;
+      marker.setLngLat([v.lon, v.lat]);
+      el.style.borderColor = crowdColor(v.load_factor); el.textContent = v.route || '▣';
       const route = routes.find(r => r.route_short_name === v.route || r.route_id === v.route_id);
       el.setAttribute('aria-label', `${mode === 'replay' ? 'Recorded' : 'Measured'} bus on ${route?.route_short_name || 'an unknown route'} ${route?.route_long_name || ''}, ${pct(v.load_factor)} full`);
-      const body = document.createElement('div');
-      const chip = document.createElement('span'); chip.className = 'route-chip';
-      const code = document.createElement('b'); code.textContent = route?.route_short_name || v.route || 'Bus';
-      code.style.background = routeColor(route?.route_color); code.style.color = safeTextColor(routeColor(route?.route_color), route?.route_text_color);
-      const name = document.createElement('span'); name.textContent = route?.route_long_name || 'Route name unavailable';
-      chip.append(code,name); body.append(chip);
-      const recorded = mode === 'replay';
-      const stamp = parseUtc(v.ts_gps);
-      const elapsed = recorded && stamp ? (replayTime-stamp.getTime())/1000 : v.gps_age_s;
-      const occupancy = v.onboard != null && v.capacity != null ? `${Math.round(v.onboard)} of ${Math.round(v.capacity)} places taken · ${pct(v.load_factor)} full` : v.load_factor != null ? `${pct(v.load_factor)} full · Passenger count unavailable` : 'Passenger count unavailable';
-      for (const text of [occupancy, `${recorded ? 'Recorded' : 'Updated'} ${ageLabel(elapsed)} ago${recorded && stamp ? ' · ' + formatDateTime(stamp) + ' CT' : ''}`]) {
-        const p = document.createElement('p'); p.textContent = text; body.append(p);
-      }
-      const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Measured'; badge.title = 'Passenger counts reported by bus counters; counter accuracy has not been independently verified.'; body.append(badge);
-      const marker = new Marker({element: el}).setLngLat([v.lon, v.lat]).setPopup(new Popup({offset: 20}).setDOMContent(body)).addTo(m);
-      if (openVehicle === v.vehicle_id) marker.togglePopup();
-      markers.current.push(marker);
+      fillBusPopup(body, v, route, mode === 'replay', replayTime);
     });
-  }, [ready, selected, visibleVehicles, routes, predictions, mode, replay.data, replayTime, meta.data]);
-  return <main className="live" aria-labelledby="page-title"><aside>
-    <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
-    <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
-    <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay past bus trips</option></select></label>
-    {mode === 'replay' && <section className="replay-controls" aria-label="Replay controls">
-      <Badge kind="MEASURED"/><p>Watch recorded bus positions. The map shows what was reported at the selected time.</p>
-      <label className="field">How far back?<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours</option>)}</select></label>
-      <Status loading={replay.loading} error={replay.error} empty={!replay.loading && !replay.error && !replay.data?.data.length} emptyText="No observed positions available in this archive."/>
-      {start > 0 && <><label className="field">Replay time (Central)<input aria-label="Replay time" type="range" min={start} max={end} step={1000} value={replayTime} onChange={e => {setCursor(Number(e.target.value)); setPlaying(false);}}/></label>
-        <output>{formatDateTime(new Date(replayTime))} CT</output>
-        <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT{replay.data?.capped ? ' · Showing the most recent available positions' : ''}</p>
-        <button className="btn" aria-pressed={playing} disabled={start === end} onClick={() => {if (replayTime >= end) setCursor(start); setPlaying(p => !p);}}>{playing ? 'Pause' : 'Play'}</button>
-        <label className="field">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}× · {s === 1 ? 'Real time' : `${s} seconds per second`}</option>)}</select></label>
-        <p>Buses disappear if no position was recorded for 2 min. Try moving the time slider if the map is empty.</p></>}
-    </section>}
-    {mode === 'live' && <Status error={error || forecastError}/>}
-    {routeDetail && mode === 'live' && meta.data?.freshness.data_expected !== false && <><button onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} routes={routes} predictions={currentPredictions}/></>}
-    <details className="route-browser" open={routeBrowserOpen} onToggle={e => setRouteBrowserOpen(e.currentTarget.open)}><summary>Choose routes · {routes.length} routes</summary><h2>Find a route</h2><label className="field">Search routes<input type="search" placeholder="Route number or name" value={search} onChange={e => setSearch(e.target.value)}/></label><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
-    <div className="route-list">{routes.filter(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())).map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><RouteChip route={r}/></label>{mode === 'live' && meta.data?.freshness.data_expected !== false && <button aria-label={`Forecast for route ${r.route_short_name} ${r.route_long_name}`} onClick={() => setRouteDetail(r.route_short_name)}>See forecast</button>}</div>)}</div>
-    {search && !routes.some(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())) && <p>No routes match. Try a name such as Bonfire.</p>}
-    </details>
-    <AboutThisData sources={{'Bus source': vehicles[0]?.source, 'Replay source': replay.data?.source, 'Replay positions': replay.data?.data.length, 'Model versions': [...new Set(predictions.map(p => (p as Prediction & {model_version?: string}).model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(predictions.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable'}}><p>Measured fullness comes from bus passenger counters. Capacity includes all available passenger places, which can include standing room. Route lines show the busiest direction’s forecast for 30 min ahead; grey means no current forecast. Forecast training may include simulated history. Replay uses recorded GPS positions, up to 10,000 positions, and hides current forecasts. Event markers indicate assumed extra demand. Dashed amber route highlights indicate an alert, not the detour path.</p></AboutThisData>
-    <footer>Schedule © TAMU Transportation Services. APC readings reported by TripSpark.</footer>
-  </aside><section className="map-wrap" aria-label={mode === 'replay' ? 'Replay campus bus map' : 'Live campus bus map'}><div ref={container} className="map"/>
+    markers.current.forEach((entry, id) => { if (!ids.has(id)) { entry.marker.remove(); markers.current.delete(id); } });
+    applyOffsets();
+    m.on('zoom', applyOffsets);
+    return () => { m.off('zoom', applyOffsets); };
+  }, [ready, selected, visibleVehicles, routes, mode, replayTime]);
+  return <main className="live" aria-labelledby="page-title"><div className="live-panel">
+    <div className="live-head">
+      <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
+      <p className="intro">Choose a route or bus to see details. Coloured bus rings show how full each bus is.</p>
+      <label className="field">Map mode<select value={mode} onChange={e => setMode(e.target.value as 'live' | 'replay')}><option value="live">Live</option><option value="replay">Replay past bus trips</option></select></label>
+      {mode === 'replay' && <section className="replay-controls" aria-label="Replay controls">
+        <Badge kind="MEASURED"/><p>Watch recorded bus positions. The map shows what was reported at the selected time.</p>
+        <label className="field">How far back?<select value={hours} onChange={e => setHours(Number(e.target.value))}>{[1, 6, 24, 72, 168].map(h => <option key={h} value={h}>Last {h} hours</option>)}</select></label>
+        <Status loading={replay.loading} error={replay.error} empty={!replay.loading && !replay.error && !replay.data?.data.length} emptyText="No observed positions available in this archive."/>
+        {start > 0 && <><label className="field">Replay time (Central)<input aria-label="Replay time" type="range" min={start} max={end} step={1000} value={replayTime} onChange={e => {setCursor(Number(e.target.value)); setPlaying(false);}}/></label>
+          <output>{formatDateTime(new Date(replayTime))} CT</output>
+          <p className="meta">{formatDateTime(new Date(start))}–{formatDateTime(new Date(end))} CT{replay.data?.capped ? ' · Showing the most recent available positions' : ''}</p>
+          <button className="btn" aria-pressed={playing} disabled={start === end} onClick={() => {if (replayTime >= end) setCursor(start); setPlaying(p => !p);}}>{playing ? 'Pause' : 'Play'}</button>
+          <label className="field">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}>{[1, 15, 60, 300].map(s => <option key={s} value={s}>{s}× · {s === 1 ? 'Real time' : `${s} seconds per second`}</option>)}</select></label>
+          <p>Buses disappear if no position was recorded for 2 min. Try moving the time slider if the map is empty.</p></>}
+      </section>}
+      {mode === 'live' && <Status error={error || forecastError}/>}
+      {routeDetail && mode === 'live' && meta.data?.freshness.data_expected !== false && <><button className="btn btn--ghost route-close" onClick={() => setRouteDetail('')}>Close route forecast</button><RouteForecast route={routeDetail} routes={routes} predictions={currentPredictions}/></>}
+    </div>
+    <div className="live-side">
+      <details className="route-browser" open={routeBrowserOpen} onToggle={e => setRouteBrowserOpen(e.currentTarget.open)}><summary>Choose routes · {routes.length} routes</summary><h2>Find a route</h2><label className="field">Search routes<input type="search" placeholder="Route number or name" value={search} onChange={e => setSearch(e.target.value)}/></label><div className="actions"><button onClick={() => setSelected(routes.map(r => r.route_id))}>Show all</button><button onClick={() => setSelected([])}>Hide all</button></div>
+      <div className="route-list">{routes.filter(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())).map(r => <div className="route-row" key={r.route_id}><label><input type="checkbox" checked={selected.includes(r.route_id)} onChange={() => setSelected(s => s.includes(r.route_id) ? s.filter(x => x !== r.route_id) : [...s, r.route_id])}/><RouteChip route={r}/></label>{mode === 'live' && meta.data?.freshness.data_expected !== false && <button className="route-forecast-btn" aria-label={`Forecast for route ${r.route_short_name} ${r.route_long_name}`} onClick={() => setRouteDetail(r.route_short_name)}>Forecast</button>}</div>)}</div>
+      {search && !routes.some(r => `${r.route_short_name} ${r.route_long_name}`.toLowerCase().includes(search.toLowerCase())) && <p>No routes match. Try a name such as Bonfire.</p>}
+      </details>
+      <AboutThisData sources={{'Bus source': vehicles[0]?.source, 'Replay source': replay.data?.source, 'Replay positions': replay.data?.data.length, 'Model versions': [...new Set(predictions.map(p => (p as Prediction & {model_version?: string}).model_version).filter(Boolean))].join(', ') || 'Unavailable', 'Training data': [...new Set(predictions.map(p => p.training_data_origin).filter(Boolean))].join(', ') || 'Unavailable'}}><p>Measured fullness comes from bus passenger counters. Capacity includes all available passenger places, which can include standing room. Route lines show the busiest direction’s forecast for 30 min ahead; grey means no current forecast. Forecast training may include simulated history. Replay uses recorded GPS positions, up to 10,000 positions, and hides current forecasts. Event markers indicate assumed extra demand. Dashed amber route highlights indicate an alert, not the detour path.</p></AboutThisData>
+      <footer>Schedule © TAMU Transportation Services. APC readings reported by TripSpark.</footer>
+    </div>
+  </div><section className="map-wrap" aria-label={mode === 'replay' ? 'Replay campus bus map' : 'Live campus bus map'}><div ref={container} className="map"/>
 
     <div className="map-info">
       {mapError && <p role="status">{mapError}</p>}

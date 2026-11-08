@@ -1,3 +1,31 @@
+export const PAGES = ['Live map', 'Forecast', 'Events', 'Plan my trip', 'History'] as const;
+export type Page = typeof PAGES[number];
+
+const PAGE_TO_HASH: Record<Page, string> = {
+  'Live map': '#map',
+  'Forecast': '#forecast',
+  'Events': '#events',
+  'Plan my trip': '#plan',
+  'History': '#history',
+};
+
+const HASH_TO_PAGE: Record<string, Page> = {
+  map: 'Live map',
+  forecast: 'Forecast',
+  events: 'Events',
+  plan: 'Plan my trip',
+  history: 'History',
+};
+
+export function pageFromHash(hash: string): Page {
+  const slug = (hash || '').trim().replace(/^#/, '').trim().toLowerCase();
+  return HASH_TO_PAGE[slug] ?? 'Live map';
+}
+
+export function hashForPage(page: Page): string {
+  return PAGE_TO_HASH[page] ?? '#map';
+}
+
 export const CAMPUS_TZ = 'America/Chicago';
 export type LoadStep = {min: number; label: string; bg: string; fg: string};
 export const LOAD_SCALE: LoadStep[] = [
@@ -117,6 +145,21 @@ export function serviceMessage(f?: Freshness, noun = 'Forecasts'): string {
 export function cleanText(text: string): string {
   return text.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/\(ID:\s*[^)]+\)/gi, '').replace(/\s+/g, ' ').trim();
 }
+export function groupShowings<T extends {title: string; venue_key?: string; start_ts: string}>(events: T[]): (T & {showings: string[]})[] {
+  const groups = new Map<string, {first: T; showings: string[]}>();
+  for (const event of events) {
+    const titleKey = cleanText(event.title).toLowerCase().replace(/\s+/g, ' ').trim();
+    const venueKey = (event.venue_key ?? '').toLowerCase().trim();
+    const key = `${titleKey}|${venueKey}`;
+    const group = groups.get(key);
+    if (!group) {
+      groups.set(key, {first: event, showings: [event.start_ts]});
+    } else if (!group.showings.includes(event.start_ts)) {
+      group.showings.push(event.start_ts);
+    }
+  }
+  return [...groups.values()].map(g => ({...g.first, showings: g.showings}));
+}
 export type HistoryRow = {route_short_name: string; direction_id: string; direction_name?: string; window_start: string; p90_load_factor: number | null; avg_load_factor?: number | null; n_pings: number | null};
 export type Series = {direction: string; label: string; points: {t: Date; p90: number; n: number}[]};
 export function historySeries(rows: HistoryRow[], route: string): Series[] {
@@ -209,4 +252,38 @@ export function comparisonMetrics(rows: ComparisonRow[]): {n: number; mae: numbe
   const n = rows.length;
   return {n, mae: n ? rows.reduce((s, r) => s + Math.abs(r.pred_p50 - r.actual_p90_load!), 0) / n : null,
     coverage: n ? rows.filter(r => r.actual_p90_load! >= r.pred_p10 && r.actual_p90_load! <= r.pred_p90).length / n : null};
+}
+
+export function spreadOffsets(points: {id: string; x: number; y: number}[], thresholdPx = 44, gapPx = 48): Map<string, [number, number]> {
+  // Single-linkage groups in screen pixels; each group of n > 1 is laid out on a ring around its centroid
+  // with adjacent slots >= gapPx apart. If two groups' rings collide, they are merged and laid out again.
+  const pts = [...points].sort((a, b) => a.id.localeCompare(b.id));
+  const parent = pts.map((_, i) => i);
+  const find = (i: number): number => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb); };
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < thresholdPx) union(i, j);
+  const layout = () => {
+    const groups = new Map<number, number[]>();
+    pts.forEach((_, i) => { const r = find(i); groups.set(r, [...(groups.get(r) ?? []), i]); });
+    const pos = pts.map(p => [p.x, p.y]);
+    for (const group of groups.values()) {
+      if (group.length === 1) continue;
+      const cx = group.reduce((sum, i) => sum + pts[i].x, 0) / group.length;
+      const cy = group.reduce((sum, i) => sum + pts[i].y, 0) / group.length;
+      const radius = Math.max(gapPx / 2, gapPx / (2 * Math.sin(Math.PI / group.length)));
+      group.forEach((index, i) => { const angle = 2 * Math.PI * i / group.length - Math.PI / 2; pos[index] = [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]; });
+    }
+    return pos;
+  };
+  let pos = layout();
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+      if (find(i) !== find(j) && Math.hypot(pos[i][0] - pos[j][0], pos[i][1] - pos[j][1]) < gapPx - 1) { union(i, j); merged = true; }
+    }
+    if (merged) pos = layout();
+  }
+  const offsets = new Map<string, [number, number]>();
+  pts.forEach((p, i) => offsets.set(p.id, [Math.round(pos[i][0] - p.x), Math.round(pos[i][1] - p.y)]));
+  return offsets;
 }

@@ -72,10 +72,11 @@ export function RouteChip({route, code}: {route?: Route; code?: string}) {
   const bg = routeColor(r?.route_color);
   return <span className="route-chip"><b style={{background: bg, color: safeTextColor(bg, r?.route_text_color)}}>{r?.route_short_name || code || 'Bus'}</b><span>{r?.route_long_name || 'Route name unavailable'}</span></span>;
 }
-export function RouteChipList({codes, routes = [], limit = 3, label = 'Nearby routes'}: {codes: string[]; routes?: Route[]; limit?: number; label?: string}) {
-  const sorted = [...new Set(codes)].sort(compareRoutes);
-  const chip = (code: string) => <RouteChip key={code} code={code} route={routes.find(r => r.route_short_name === code)}/>;
-  return <div className="route-chip-list"><p className="meta">{label} · {sorted.length} {sorted.length === 1 ? 'route' : 'routes'}</p><div className="chip-wrap">{sorted.slice(0,limit).map(chip)}</div>{sorted.length > limit && <details><summary>Show all {sorted.length} routes</summary><div className="chip-wrap">{sorted.slice(limit).map(chip)}</div></details>}</div>;
+export function RouteChipList({codes, routes = [], limit = 3, label = 'Nearby routes', ordered = false, note, showCount = true}: {codes: string[]; routes?: Route[]; limit?: number; label?: string; ordered?: boolean; note?: (code: string) => string | undefined; showCount?: boolean}) {
+  const sorted = [...new Set(codes)];
+  if (!ordered) sorted.sort(compareRoutes);
+  const chip = (code: string) => { const text = note?.(code); return <span key={code}><RouteChip code={code} route={routes.find(r => r.route_short_name === code)}/>{text !== undefined && <span className="chip-note">{text}</span>}</span>; };
+  return <div className="route-chip-list"><p className="meta">{label}{showCount && <> · {sorted.length} {sorted.length === 1 ? 'route' : 'routes'}</>}</p><div className="chip-wrap">{sorted.slice(0,limit).map(chip)}</div>{sorted.length > limit && <details><summary>Show all {sorted.length} routes</summary><div className="chip-wrap">{sorted.slice(limit).map(chip)}</div></details>}</div>;
 }
 export function StopName({name}: {name: string}) { return <span>{name || 'Stop name unavailable'}</span>; }
 export function TimeLabel({value, dateOnly = false}: {value?: string | null; dateOnly?: boolean}) {
@@ -115,9 +116,9 @@ export function LineChart({series, ariaLabel}: {series: Series[]; ariaLabel: str
   return <figure className="chart" tabIndex={0}><figcaption>Measured fullness over time. Scroll for all times, or open the data table below.</figcaption><svg viewBox="0 0 900 280" role="img" aria-label={ariaLabel}>
     {[0, 0.25, 0.5, 0.75, 1].map(v => <g key={v}><line x1="56" x2="880" y1={y(v)} y2={y(v)} stroke={v === 0.75 ? '#500000' : '#dfd8d3'} strokeDasharray={v === 0.75 ? '5 4' : undefined}/><text x="48" y={y(v) + 4} textAnchor="end">{v * 100}%</text></g>)}
     <text x="875" y={y(0.75) - 5} textAnchor="end">Crowded (75%)</text>
-    {ticks.map((t, i) => <g key={i}><line x1={x(t)} x2={x(t)} y1="240" y2="245" stroke="#5f5b5d"/><text x={x(t)} y="260" textAnchor="middle">{formatTime(new Date(t))}</text></g>)}<text x="468" y="278" textAnchor="middle">Time (Central)</text>
+    {ticks.map((t, i) => <g key={i}><line x1={x(t)} x2={x(t)} y1="240" y2="245" stroke="#5f5b5d"/><text x={x(t)} y="260" textAnchor={ticks.length > 1 && i === 0 ? 'start' : ticks.length > 1 && i === ticks.length - 1 ? 'end' : 'middle'}>{formatTime(new Date(t))}</text></g>)}<text x="468" y="278" textAnchor="middle">Time (Central)</text>
     {series.map((s, i) => <g key={s.direction}><polyline fill="none" stroke={style(i).color} strokeWidth="3" strokeDasharray={style(i).dash} points={s.points.map(p => `${x(p.t.getTime())},${y(p.p90)}`).join(' ')}/>{s.points.map((p, j) => <circle key={j} cx={x(p.t.getTime())} cy={y(p.p90)} r="4" fill={style(i).color}/>)}</g>)}
-  </svg><ul>{series.map((s, i) => <li key={s.direction}><svg width="30" height="10" viewBox="0 0 30 10" aria-hidden="true" style={{width: 30, height: 10}}><line x1="0" x2="30" y1="5" y2="5" stroke={style(i).color} strokeWidth="3" strokeDasharray={style(i).dash}/></svg> {s.label}</li>)}</ul><details className="data-fallback"><summary>Show data table</summary><table className="data-table"><thead><tr><th>Direction</th><th>Time</th><th>Busy bus load</th><th>Readings</th></tr></thead><tbody>{series.flatMap(s => s.points.map((p, i) => <tr key={`${s.direction}-${i}`}><td>{s.label}</td><td>{friendlyDate(p.t)}</td><td>{pct(p.p90)}</td><td>{p.n}</td></tr>))}</tbody></table></details></figure>;
+  </svg>{series.length > 1 && <ul>{series.map((s, i) => <li key={s.direction}><svg width="30" height="10" viewBox="0 0 30 10" aria-hidden="true" style={{width: 30, height: 10}}><line x1="0" x2="30" y1="5" y2="5" stroke={style(i).color} strokeWidth="3" strokeDasharray={style(i).dash}/></svg> {s.label}</li>)}</ul>}<details className="data-fallback"><summary>Show data table</summary><table className="data-table"><thead><tr><th>Direction</th><th>Time</th><th>Busy bus load</th><th>Readings</th></tr></thead><tbody>{series.flatMap(s => s.points.map((p, i) => <tr key={`${s.direction}-${i}`}><td>{s.label}</td><td>{friendlyDate(p.t)}</td><td>{pct(p.p90)}</td><td>{p.n}</td></tr>))}</tbody></table></details></figure>;
 }
 
 export function ComparisonChart({rows}: {rows: import('./format').ComparisonRow[]}) {
@@ -138,7 +139,7 @@ export function ComparisonChart({rows}: {rows: import('./format').ComparisonRow[
         {points.map((r, j) => <circle key={j} r="3" fill={i % 2 ? '#a96800' : '#17623d'} cx={x(stamp(r))} cy={y(r.actual_p90_load!)}/>)}
       </g>;
     })}
-    {[min, min + (max - min) / 2, max].map((t, i) => <text key={i} x={x(t)} y="260" textAnchor="middle">{formatTime(new Date(t))}</text>)}
+    {(min === max ? [min] : [min, min + (max - min) / 2, max]).map((t, i, all) => <text key={i} x={x(t)} y="260" textAnchor={all.length > 1 && i === 0 ? 'start' : all.length > 1 && i === all.length - 1 ? 'end' : 'middle'}>{formatTime(new Date(t))}</text>)}
     <text x="468" y="278" textAnchor="middle">Target window (Central)</text>
   </svg><figcaption>Shaded: likely range. Dashed maroon: expected load. Solid green / amber: measured busy bus load. Values are also available in the table below.</figcaption>
     <details className="data-fallback"><summary>Show comparison data</summary><div className="table-scroll"><table className="data-table"><caption>Forecast and measured load in each 15-minute period</caption><thead><tr><th scope="col">Direction</th><th scope="col">Target (Central)</th><th scope="col">Low estimate</th><th scope="col">Median</th><th scope="col">High estimate</th><th scope="col">Measured load</th><th scope="col">Readings</th></tr></thead><tbody>{rows.map((r, i) => <tr key={i}><th scope="row">{directionName(r.direction_name) || 'Route service'}</th><td>{formatDateTime(new Date(stamp(r)))}</td><td>{pct(r.pred_p10)}</td><td>{pct(r.pred_p50)}</td><td>{pct(r.pred_p90)}</td><td>{pct(r.actual_p90_load)}</td><td>{r.actual_n_pings}</td></tr>)}</tbody></table></div></details>

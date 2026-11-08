@@ -37,21 +37,29 @@ def distance(a, b):
     )
 
 
-def affected(event):
+def route_distances(event):
     if event.get("lat") is None or event.get("lon") is None:
-        return []
-    ids = {
-        r
-        for s in static("stops.geojson")["features"]
-        if distance(
-            s["geometry"]["coordinates"], [float(event["lon"]), float(event["lat"])]
+        return {}
+    distances = {}
+    for stop in static("stops.geojson")["features"]:
+        metres = distance(
+            stop["geometry"]["coordinates"], [float(event["lon"]), float(event["lat"])]
         )
-        <= 600
-        for r in s["properties"]["routes"]
-    }
-    return [
-        r["route_short_name"] for r in static("routes.json") if r["route_id"] in ids
-    ]
+        if metres <= 600:
+            for route_id in stop["properties"]["routes"]:
+                distances[route_id] = min(distances.get(route_id, metres), metres)
+    result = {}
+    for route in static("routes.json"):
+        if route["route_id"] in distances:
+            name = route["route_short_name"]
+            metres = round(distances[route["route_id"]])
+            result[name] = min(result.get(name, metres), metres)
+    return result
+
+
+def affected(event):
+    d = route_distances(event)
+    return sorted(d, key=lambda r: (d[r], r))
 
 
 def filter_event(event, rules, venues):
@@ -493,6 +501,7 @@ class Datasets:
                 )
             if name == "events":
                 row["affected_routes"] = affected(row)
+                row["route_distances"] = route_distances(row)
                 row["venue_name"] = str(row.get("venue_key") or "").replace("_", " ").title()
             if name == "alerts":
                 stop_names = {
@@ -562,6 +571,7 @@ class Datasets:
                 {
                     **event,
                     "affected_routes": nearby,
+                    "route_distances": route_distances(event),
                     "route_directions": directions,
                     "impacts": impacts,
                     "impact_provenance": "SIMULATED PRIOR",
