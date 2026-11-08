@@ -2,7 +2,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import * as maplibregl from 'maplibre-gl';
 import {Map as GLMap, Marker, Popup} from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import {ageLabel, compareRoutes, directionName, factorPhrase, routeColor, safeTextColor, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, replayFrame, routeLoad} from './format';
+import {spreadOffsets, ageLabel, compareRoutes, directionName, factorPhrase, routeColor, safeTextColor, crowdColor, formatDateTime, MAP_LOAD_SCALE, parseUtc, pct, replayFrame, routeLoad} from './format';
 import type {Freshness, Prediction} from './format';
 import {AboutThisData, Badge, IntervalBar, RouteChip, ServiceNotice, Status, useApi} from './ui';
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
@@ -134,6 +134,11 @@ export default function LiveMap() {
   useEffect(() => {
     const m = map.current; if (!ready || !m || !routes.length) return;
     const visible = visibleVehicles.filter(v => { const r = routes.find(r => r.route_id === v.route_id || r.route_short_name === v.route); return !r || selected.includes(r.route_id); });
+    const visibleRef = {current: visible};
+    const applyOffsets = () => {
+      const offsets = spreadOffsets(visibleRef.current.map(v => { const p = m.project([v.lon, v.lat]); return {id: v.vehicle_id, x: p.x, y: p.y}; }));
+      visibleRef.current.forEach(v => markers.current.get(v.vehicle_id)?.marker.setOffset(offsets.get(v.vehicle_id) ?? [0, 0]));
+    };
     const ids = new Set(visible.map(v => v.vehicle_id));
     visible.forEach(v => {
       let entry = markers.current.get(v.vehicle_id);
@@ -152,6 +157,9 @@ export default function LiveMap() {
       fillBusPopup(body, v, route, mode === 'replay', replayTime);
     });
     markers.current.forEach((entry, id) => { if (!ids.has(id)) { entry.marker.remove(); markers.current.delete(id); } });
+    applyOffsets();
+    m.on('zoom', applyOffsets);
+    return () => { m.off('zoom', applyOffsets); };
   }, [ready, selected, visibleVehicles, routes, mode, replayTime]);
   return <main className="live" aria-labelledby="page-title"><aside>
     <span className="eyebrow">CAMPUS IN MOTION</span><h1 id="page-title" tabIndex={-1}>{mode === 'replay' ? 'Replay map' : 'Live map'}</h1>
