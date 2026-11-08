@@ -254,7 +254,7 @@ export function comparisonMetrics(rows: ComparisonRow[]): {n: number; mae: numbe
     coverage: n ? rows.filter(r => r.actual_p90_load! >= r.pred_p10 && r.actual_p90_load! <= r.pred_p90).length / n : null};
 }
 
-export function spreadOffsets(points: {id: string; x: number; y: number}[], thresholdPx = 44, gapPx = 44): Map<string, [number, number]> {
+export function spreadOffsets(points: {id: string; x: number; y: number}[], thresholdPx = 44, gapPx = 48): Map<string, [number, number]> {
   // Single-linkage groups in screen pixels; each group of n > 1 is laid out on a ring around its centroid
   // with adjacent slots >= gapPx apart. If two groups' rings collide, they are merged and laid out again.
   const pts = [...points].sort((a, b) => a.id.localeCompare(b.id));
