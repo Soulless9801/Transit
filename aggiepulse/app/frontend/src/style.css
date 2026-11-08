@@ -842,3 +842,11 @@ nav button { min-height: 44px; color: var(--ink-2); }
 .chart li { display: flex; align-items: center; gap: 8px; }
 .chart li svg { flex-shrink: 0; }
 @media (max-width: 800px) { .chart > svg text { font-size: 18px; } }
+.route-close { align-self: flex-start; min-height: 36px; margin: 12px 0 4px; font-size: 14px; }
+/* Phones: keep all five tabs on one scrollable row instead of orphaning the last one. */
+@media (max-width: 800px) {
+  nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  nav::-webkit-scrollbar { display: none; }
+  nav { gap: 2px; }
+  nav button { flex-shrink: 0; padding: 8px 6px; }
+}
