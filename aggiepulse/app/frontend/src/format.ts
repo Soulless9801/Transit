@@ -154,7 +154,7 @@ export function groupShowings<T extends {title: string; venue_key?: string; star
     const group = groups.get(key);
     if (!group) {
       groups.set(key, {first: event, showings: [event.start_ts]});
-    } else {
+    } else if (!group.showings.includes(event.start_ts)) {
       group.showings.push(event.start_ts);
     }
   }

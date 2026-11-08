@@ -210,5 +210,8 @@ test('groupShowings merges repeat showings preserving order and first item', () 
   assert.deepEqual(r4[0].showings, ['t1', 't3']);
   assert.equal(r4[1].title, 'Beta');
   assert.deepEqual(r4[1].showings, ['t2']);
+
+  // an exact duplicate row (same title, venue and time) is not listed as an extra showing
+  assert.deepEqual(groupShowings([e1, {...e1}])[0].showings, ['2026-11-10T19:30:00Z']);
 });
 
