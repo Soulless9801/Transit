@@ -1,3 +1,31 @@
+export const PAGES = ['Live map', 'Forecast', 'Events', 'Plan my trip', 'History'] as const;
+export type Page = typeof PAGES[number];
+
+const PAGE_TO_HASH: Record<Page, string> = {
+  'Live map': '#map',
+  'Forecast': '#forecast',
+  'Events': '#events',
+  'Plan my trip': '#plan',
+  'History': '#history',
+};
+
+const HASH_TO_PAGE: Record<string, Page> = {
+  map: 'Live map',
+  forecast: 'Forecast',
+  events: 'Events',
+  plan: 'Plan my trip',
+  history: 'History',
+};
+
+export function pageFromHash(hash: string): Page {
+  const slug = (hash || '').trim().replace(/^#/, '').trim().toLowerCase();
+  return HASH_TO_PAGE[slug] ?? 'Live map';
+}
+
+export function hashForPage(page: Page): string {
+  return PAGE_TO_HASH[page] ?? '#map';
+}
+
 export const CAMPUS_TZ = 'America/Chicago';
 export type LoadStep = {min: number; label: string; bg: string; fg: string};
 export const LOAD_SCALE: LoadStep[] = [

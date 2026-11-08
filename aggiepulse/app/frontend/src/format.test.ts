@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes} from './format.ts';
+import {LOAD_SCALE, contrastRatio, loadStep, parseUtc, formatDateTime, formatTime, campusHour, pct, points, shiftLabel, significanceLevel, stopOptions, resolveStop, historySeries, hotspotGrid, directionLabels, compareRoutes, PAGES, pageFromHash, hashForPage} from './format.ts';
 
 test('load scale and contrast', () => {
   for (const step of LOAD_SCALE) assert.ok(contrastRatio(step.bg, step.fg) >= 4.5);
@@ -144,3 +144,14 @@ test('factor explanations and notices hide implementation vocabulary', async () 
   assert.equal(directionName('MSC'),'MSC');
   assert.equal(readableName('rudder_auditorium'),'Rudder Auditorium');
 });
+
+test('hash routing and page resolution', () => {
+  for (const page of PAGES) assert.equal(pageFromHash(hashForPage(page)), page);
+  assert.equal(pageFromHash(''), 'Live map');
+  assert.equal(pageFromHash('#'), 'Live map');
+  assert.equal(pageFromHash('#Unknown'), 'Live map');
+  assert.equal(pageFromHash('#FORECAST'), 'Forecast');
+  assert.equal(pageFromHash(' #plan '), 'Plan my trip');
+  assert.equal(hashForPage('Live map'), '#map');
+});
+
