@@ -34,14 +34,15 @@ The status box at the top shows how fresh the data is, and says when no buses ar
 
 Code is in `aggiepulse/`. Use the Databricks CLI profile `transit`.
 
-- **Laptop processes** (run from `aggiepulse/`; keep them running for live buses):
+- **Laptop processes** (keep them running for live buses), from `aggiepulse/`:
   ```sh
-  nohup scripts/collector/run_backup_collector.sh --interval 30 --base-interval 3600 --rotate-minutes 5 &
-  nohup scripts/platform/run_sync_loop.sh --rotate-minutes 5 &
-  nohup scripts/platform/run_publish_live_loop.sh --interval 30 &
-  scripts/ops/install_launchd.sh                                    # daily batch download at 06:00
-  scripts/ops/keepalive.sh install https://aggiepulse-n5me.onrender.com  # stops Render's free tier sleeping
+  scripts/ops/start.sh             # collector, sync to Databricks, live publisher
+  scripts/ops/start.sh keepalive   # also stop Render's free tier sleeping
+  scripts/ops/status.sh            # what's running, and the age of the last bus poll
+  scripts/ops/stop.sh              # stop everything (finishes the current poll/upload)
+  scripts/ops/install_launchd.sh   # one-time: daily batch download at 06:00
   ```
+  You can name single services: `start.sh sync`, `stop.sh publisher`, and so on. Logs are in `aggiepulse/data/logs/`.
 - **Deploy Databricks** (pipelines, jobs, models, app):
   ```sh
   npm run build --prefix app/frontend && databricks bundle deploy -p transit
