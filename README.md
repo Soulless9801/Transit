@@ -47,7 +47,7 @@ Code is in `aggiepulse/`. Use the Databricks CLI profile `transit`.
   ```sh
   npm run build --prefix app/frontend && databricks bundle deploy -p transit
   databricks apps deploy aggiepulse -p transit \
-    --source-code-path /Workspace/Users/<redacted-email>/.bundle/aggiepulse/transit/files/app
+    --source-code-path "/Workspace/Users/$(databricks current-user me -p transit -o json | jq -r .userName)/.bundle/aggiepulse/transit/files/app"
   ```
 - **Public mirror:** `render.yaml` builds `aggiepulse/app/Dockerfile`, and each push to `main` redeploys it. It signs in as the read-only service principal `aggiepulse-public`, using the `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` environment variables in Render.
 - **Databricks app access:** the original app (https://aggiepulse-7474654155800707.aws.databricksapps.com) needs a workspace login. To give someone access:

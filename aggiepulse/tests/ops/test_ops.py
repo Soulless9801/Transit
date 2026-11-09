@@ -80,7 +80,7 @@ def test_launchd_dry_run_has_correct_schedule_and_no_load():
     assert 'no immediate run' in result.stdout
 
 
-def test_scheduled_serverless_jobs_and_failure_email():
+def test_scheduled_serverless_jobs_without_email_alerts():
     import yaml
 
     jobs = yaml.safe_load((ROOT/'resources/jobs_ml.yml').read_text())['resources']['jobs']
@@ -92,7 +92,7 @@ def test_scheduled_serverless_jobs_and_failure_email():
     assert tasks['evaluate']['depends_on'] == [{'task_key': 'train'}]
     assert tasks['register']['depends_on'] == [{'task_key': 'evaluate'}]
     health = jobs['ops_health']
-    assert health['email_notifications']['on_failure'] == ['<redacted-email>']
+    assert 'email_notifications' not in health and 'email_notifications' not in train
     assert health['schedule']['quartz_cron_expression'] == '0 12/15 * * * ?'
     assert health['tasks'][0]['environment_key'] == 'ops'
     assert health['environments'][0]['spec']['environment_version'] == '4'
